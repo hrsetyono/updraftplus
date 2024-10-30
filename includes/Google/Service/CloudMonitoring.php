@@ -28,7 +28,7 @@
  *
  * @author Google, Inc.
  */
-class Google_Service_CloudMonitoring extends Google_Service
+class Google_Service_CloudMonitoring extends UDP_Google_Service
 {
   /** View and write monitoring data for all of your Google and third-party Cloud and API projects. */
   const MONITORING =
@@ -44,7 +44,7 @@ class Google_Service_CloudMonitoring extends Google_Service
    *
    * @param Google_Client $client
    */
-  public function __construct(Google_Client $client)
+  public function __construct(UDP_Google_Client $client)
   {
     parent::__construct($client);
     $this->servicePath = 'cloudmonitoring/v2beta2/projects/';
@@ -248,7 +248,7 @@ class Google_Service_CloudMonitoring extends Google_Service
  *   $metricDescriptors = $cloudmonitoringService->metricDescriptors;
  *  </code>
  */
-class Google_Service_CloudMonitoring_MetricDescriptors_Resource extends Google_Service_Resource
+class Google_Service_CloudMonitoring_MetricDescriptors_Resource extends UDP_Google_Service_Resource
 {
 
   /**
@@ -321,7 +321,7 @@ class Google_Service_CloudMonitoring_MetricDescriptors_Resource extends Google_S
  *   $timeseries = $cloudmonitoringService->timeseries;
  *  </code>
  */
-class Google_Service_CloudMonitoring_Timeseries_Resource extends Google_Service_Resource
+class Google_Service_CloudMonitoring_Timeseries_Resource extends UDP_Google_Service_Resource
 {
 
   /**
@@ -411,7 +411,7 @@ class Google_Service_CloudMonitoring_Timeseries_Resource extends Google_Service_
  *   $timeseriesDescriptors = $cloudmonitoringService->timeseriesDescriptors;
  *  </code>
  */
-class Google_Service_CloudMonitoring_TimeseriesDescriptors_Resource extends Google_Service_Resource
+class Google_Service_CloudMonitoring_TimeseriesDescriptors_Resource extends UDP_Google_Service_Resource
 {
 
   /**

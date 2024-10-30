@@ -101,6 +101,48 @@ class UpdraftPlus_PclZip {
 	}
 
 	/**
+	 * Compatibility function for WP < 3.7; taken from WP 5.2.2
+	 *
+	 * @staticvar array $encodings
+	 * @staticvar bool  $overloaded
+	 *
+	 * @param bool $reset - Whether to reset the encoding back to a previously-set encoding.
+	 */
+	private function mbstring_binary_safe_encoding($reset = false) {
+	
+		if (function_exists('mbstring_binary_safe_encoding')) return mbstring_binary_safe_encoding($reset);
+	
+		static $encodings  = array();
+		static $overloaded = null;
+
+		if (is_null($overloaded)) {
+			$overloaded = function_exists('mb_internal_encoding') && (ini_get('mbstring.func_overload') & 2); // phpcs:ignore  PHPCompatibility.IniDirectives.RemovedIniDirectives.mbstring_func_overloadDeprecated
+		}
+
+		if (false === $overloaded) {
+			return;
+		}
+
+		if (!$reset) {
+			$encoding = mb_internal_encoding();
+			array_push($encodings, $encoding);
+			mb_internal_encoding('ISO-8859-1');
+		}
+
+		if ($reset && $encodings) {
+			$encoding = array_pop($encodings);
+			mb_internal_encoding($encoding);
+		}
+	}
+
+	/**
+	 * Compatibility function for WP < 3.7
+	 */
+	private function reset_mbstring_encoding() {
+		return function_exists('reset_mbstring_encoding') ? reset_mbstring_encoding() : $this->mbstring_binary_safe_encoding(true);
+	}
+	
+	/**
 	 * Returns the entry contents using its index. This is used only in PclZip, to get better performance (i.e. no such method exists on other zip objects, so don't call it on them). The caller must be careful not to request more than will fit into available memory.
 	 *
 	 * @see https://php.net/manual/en/ziparchive.getfromindex.php
@@ -114,11 +156,11 @@ class UpdraftPlus_PclZip {
 		$results = array();
 	
 		// This is just for crazy people with mbstring.func_overload enabled (deprecated from PHP 7.2)
-		mbstring_binary_safe_encoding();
+		$this->mbstring_binary_safe_encoding();
 		
 		$contents = $this->pclzip->extract(PCLZIP_OPT_BY_INDEX, $indexes, PCLZIP_OPT_EXTRACT_AS_STRING);
 
-		reset_mbstring_encoding();
+		$this->reset_mbstring_encoding();
 		
 		if (0 === $contents) {
 			$this->last_error = $this->pclzip->errorInfo(true);
@@ -202,7 +244,7 @@ class UpdraftPlus_PclZip {
 		// Route around PHP bug (exact version with the problem not known)
 		$ziparchive_create_match = (version_compare(PHP_VERSION, '5.2.12', '>') && defined('ZIPARCHIVE::CREATE')) ? ZIPARCHIVE::CREATE : 1;
 
-		if ($flags == $ziparchive_create_match && file_exists($path)) @unlink($path);
+		if ($flags == $ziparchive_create_match && file_exists($path)) @unlink($path);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise if the file doesn't exist.
 
 		$this->pclzip = new PclZip($path);
 
@@ -316,6 +358,8 @@ class UpdraftPlus_PclZip {
 class UpdraftPlus_BinZip extends UpdraftPlus_PclZip {
 
 	private $binzip;
+	
+	private $symlink_reversals = array();
 
 	/**
 	 * Class constructor
@@ -330,12 +374,37 @@ class UpdraftPlus_BinZip extends UpdraftPlus_PclZip {
 		return parent::__construct();
 	}
 
+	/**
+	 * Receive a list of directory symlinks found, allowing their later reversal
+	 *
+	 * @param Array $symlink_reversals
+	 */
+	public function ud_notify_symlink_reversals($symlink_reversals) {
+		$this->symlink_reversals = $symlink_reversals;
+	}
+	
+	/**
+	 * Add a file to the zip
+	 *
+	 * @param String $file
+	 * @param String $add_as
+	 */
 	public function addFile($file, $add_as) {
 
 		global $updraftplus;
+		
+		// If $file was reached through a symlink and has been dereferenced, then see if we can do anything about that.
+		foreach ($this->symlink_reversals as $target => $link) {
+			if (0 === strpos($file, $target)) {
+				// Get the "within WP" path back so that we can eventually run "zip -@" from a directory where $add_as actually exists with its given path
+				$file = UpdraftPlus_Manipulation_Functions::str_replace_once($target, $link, $file);
+			}
+		}
+		
 		// Get the directory that $add_as is relative to
 		$base = UpdraftPlus_Manipulation_Functions::str_lreplace($add_as, '', $file);
-
+		
+		// If the replacement operation has done nothing, i.e. if $file did not begin with $add_as
 		if ($file == $base) {
 			// Shouldn't happen; but see: https://bugs.php.net/bug.php?id=62119
 			$updraftplus->log("File skipped due to unexpected name mismatch (locale: ".setlocale(LC_CTYPE, "0")."): file=$file add_as=$add_as", 'notice', false, true);
@@ -361,12 +430,9 @@ class UpdraftPlus_BinZip extends UpdraftPlus_PclZip {
 		}
 
 		global $updraftplus, $updraftplus_backup;
-		$updraft_dir = $updraftplus->backups_dir_location();
-
-		$activity = false;
 
 		// BinZip does not like zero-sized zip files
-		if (file_exists($this->path) && 0 == filesize($this->path)) @unlink($this->path);
+		if (file_exists($this->path) && 0 == filesize($this->path)) @unlink($this->path);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise if the file doesn't exist.
 
 		$descriptorspec = array(
 			0 => array('pipe', 'r'),
@@ -393,7 +459,7 @@ class UpdraftPlus_BinZip extends UpdraftPlus_PclZip {
 		// Loop over each destination directory name
 		foreach ($this->addfiles as $rdirname => $files) {
 
-			$process = proc_open($exec, $descriptorspec, $pipes, $rdirname);
+			$process = function_exists('proc_open') ? proc_open($exec, $descriptorspec, $pipes, $rdirname) : false;
 
 			if (!is_resource($process)) {
 				$updraftplus->log('BinZip error: proc_open failed');
@@ -419,7 +485,7 @@ class UpdraftPlus_BinZip extends UpdraftPlus_PclZip {
 				$write = array($pipes[0]);
 			}
 
-			while ((!feof($pipes[1]) || !feof($pipes[2]) || (is_array($files) && count($files)>0)) && false !== ($changes = @stream_select($read, $write, $except, 0, 200000))) {
+			while ((!feof($pipes[1]) || !feof($pipes[2]) || (is_array($files) && count($files)>0)) && false !== ($changes = @stream_select($read, $write, $except, 0, 200000))) {// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged, VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
 
 				if (is_array($write) && in_array($pipes[0], $write) && is_array($files) && count($files)>0) {
 					$file = array_pop($files);
@@ -437,7 +503,7 @@ class UpdraftPlus_BinZip extends UpdraftPlus_PclZip {
 						$last_recorded_alive = time();
 					}
 					if (file_exists($this->path)) {
-						$new_size = @filesize($this->path);
+						$new_size = @filesize($this->path);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 						if (!$something_useful_happened && $new_size > $orig_size + 20) {
 							UpdraftPlus_Job_Scheduler::something_useful_happened();
 							$something_useful_happened = true;
@@ -466,7 +532,7 @@ class UpdraftPlus_BinZip extends UpdraftPlus_PclZip {
 			fclose($pipes[1]);
 			fclose($pipes[2]);
 
-			$ret = proc_close($process);
+			$ret = function_exists('proc_close') ? proc_close($process) : -1;
 
 			if (0 != $ret && 12 != $ret) {
 				if ($ret < 128) {

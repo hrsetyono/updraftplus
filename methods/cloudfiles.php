@@ -8,7 +8,7 @@ if (!defined('UPDRAFTPLUS_DIR')) die('No direct access.');
  * Migration code for "new"-style options removed: Feb 2017 (created: Dec 2013)
  */
 
-if (!class_exists('UpdraftPlus_BackupModule')) require_once(UPDRAFTPLUS_DIR.'/methods/backup-module.php');
+if (!class_exists('UpdraftPlus_BackupModule')) updraft_try_include_file('methods/backup-module.php', 'require_once');
 
 /**
  * Old SDK
@@ -18,20 +18,18 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 	/**
 	 * This function does not catch any exceptions - that should be done by the caller
 	 *
-	 * @param  string  $user
-	 * @param  string  $apikey
-	 * @param  string  $authurl
-	 * @param  boolean $useservercerts
-	 * @return array
+	 * @param  String  $user
+	 * @param  String  $apikey
+	 * @param  String  $authurl
+	 * @param  Boolean $useservercerts
+	 * @return Array
 	 */
 	private function getCF($user, $apikey, $authurl, $useservercerts = false) {
 		
 		$storage = $this->get_storage();
 		if (!empty($storage)) return $storage;
 		
-		global $updraftplus;
-
-		if (!class_exists('UpdraftPlus_CF_Authentication')) include_once(UPDRAFTPLUS_DIR.'/includes/cloudfiles/cloudfiles.php');
+		if (!class_exists('UpdraftPlus_CF_Authentication')) updraft_try_include_file('includes/cloudfiles/cloudfiles.php', 'include_once');
 
 		if (!defined('UPDRAFTPLUS_SSL_DISABLEVERIFY')) define('UPDRAFTPLUS_SSL_DISABLEVERIFY', UpdraftPlus_Options::get_updraft_option('updraft_ssl_disableverify'));
 
@@ -59,7 +57,7 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 	 */
 	public function get_supported_features() {
 		// This options format is handled via only accessing options via $this->get_options()
-		return array('multi_options', 'config_templates', 'multi_storage');
+		return array('multi_options', 'config_templates', 'multi_storage', 'conditional_logic');
 	}
 
 	/**
@@ -77,9 +75,21 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 		);
 	}
 	
+	/**
+	 * Check whether options have been set up by the user, or not
+	 *
+	 * @param Array $opts - the potential options
+	 *
+	 * @return Boolean
+	 */
+	public function options_exist($opts) {
+		if (is_array($opts) && isset($opts['user']) && '' != $opts['user'] && !empty($opts['apikey'])) return true;
+		return false;
+	}
+
 	public function backup($backup_array) {
 
-		global $updraftplus, $updraftplus_backup;
+		global $updraftplus;
 
 		$opts = $this->get_options();
 
@@ -106,7 +116,7 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 
 		$chunk_size = 5*1024*1024;
 
-		foreach ($backup_array as $key => $file) {
+		foreach ($backup_array as $file) {
 
 			$fullpath = $updraft_dir.$file;
 			$orig_file_size = filesize($fullpath);
@@ -124,7 +134,7 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 
 				if ($uploaded_size <= $orig_file_size) {
 
-					$fp = @fopen($fullpath, "rb");
+					$fp = @fopen($fullpath, "rb");// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 					if (!$fp) {
 						$this->log("failed to open file: $fullpath");
 						$this->log("$file: ".__('Error: Failed to open local file', 'updraftplus'), 'error');
@@ -265,16 +275,22 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 		return $results;
 
 	}
+	
+	/**
+	 * Delete a single file from the service using the CloudFiles API
+	 *
+	 * @param Array $files         - array of file paths to delete
+	 * @param Array $cloudfilesarr - CloudFiles container and object details
+	 * @param Array $sizeinfo      - unused here
+	 * @return Boolean|String - either a boolean true or an error code string
+	 */
+	public function delete($files, $cloudfilesarr = false, $sizeinfo = array()) {// phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable -- $sizeinfo is unused
 
-	public function delete($files, $cloudfilesarr = false, $sizeinfo = array()) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
-
-		global $updraftplus;
 		if (is_string($files)) $files =array($files);
 
 		if ($cloudfilesarr) {
 			$container_object = $cloudfilesarr['cloudfiles_object'];
 			$container = $cloudfilesarr['cloudfiles_container'];
-			$path = $cloudfilesarr['cloudfiles_orig_path'];
 		} else {
 			try {
 				$opts = $this->get_options();
@@ -284,7 +300,7 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 			} catch (Exception $e) {
 				$this->log('authentication failed ('.$e->getMessage().')');
 				$this->log(__('authentication failed', 'updraftplus').' ('.$e->getMessage().')', 'error');
-				return false;
+				return 'authentication_fail';
 			}
 		}
 
@@ -296,7 +312,6 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 			$this->log("Delete remote: container=$container, path=$fpath");
 
 			// We need to search for chunks
-			// $chunk_path = ($path == '') ? "chunk-do-not-delete-$file_" : "$path/chunk-do-not-delete-$file_";
 			$chunk_path = "chunk-do-not-delete-$file";
 
 			try {
@@ -315,7 +330,7 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 				$this->log('Deleted: '.$fpath);
 			} catch (Exception $e) {
 				$this->log('delete failed: '.$e->getMessage());
-				$ret = false;
+				$ret = 'file_delete_error';
 			}
 		}
 		return $ret;
@@ -437,13 +452,13 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 				// Check requirements.
 				global $updraftplus_admin;
 				if (!function_exists('mb_substr')) {
-					$updraftplus_admin->show_double_warning('<strong>'.__('Warning', 'updraftplus').':</strong> '.sprintf(__('Your web server\'s PHP installation does not included a required module (%s). Please contact your web hosting provider\'s support.', 'updraftplus'), 'mbstring').' '.sprintf(__("UpdraftPlus's %s module <strong>requires</strong> %s. Please do not file any support requests; there is no alternative.", 'updraftplus'), 'Cloud Files', 'mbstring'), 'cloudfiles', false);
+					$updraftplus_admin->show_double_warning('<strong>'.__('Warning', 'updraftplus').':</strong> '.sprintf(__('Your web server\'s PHP installation does not included a required module (%s).', 'updraftplus'), 'mbstring').' '.__('Please contact your web hosting provider\'s support.', 'updraftplus').' '.sprintf(__("UpdraftPlus's %s module <strong>requires</strong> %s.", 'updraftplus'), 'Cloud Files', 'mbstring').' '.__('Please do not file any support requests; there is no alternative.', 'updraftplus'), 'cloudfiles', false);
 				}
 				$updraftplus_admin->curl_check('Rackspace Cloud Files', false, 'cloudfiles', false);
 			?>
 
 			<?php
-				echo '<p>' . __('Get your API key <a href="https://mycloud.rackspace.com/" target="_blank">from your Rackspace Cloud console</a> (read instructions <a href="http://www.rackspace.com/knowledge_center/article/rackspace-cloud-essentials-1-generating-your-api-key" target="_blank">here</a>), then pick a container name to use for storage. This container will be created for you if it does not already exist.', 'updraftplus').' <a href="https://updraftplus.com/faqs/there-appear-to-be-lots-of-extra-files-in-my-rackspace-cloud-files-container/" target="_blank">'.__('Also, you should read this important FAQ.', 'updraftplus').'</a></p>';
+				echo '<p>' . __('Get your API key <a href="https://mycloud.rackspace.com/" target="_blank">from your Rackspace Cloud console</a> (<a href="http://www.rackspace.com/knowledge_center/article/rackspace-cloud-essentials-1-generating-your-api-key" target="_blank">read instructions here</a>), then pick a container name to use for storage.', 'updraftplus').' '.__('This container will be created for you if it does not already exist.', 'updraftplus').' <a href="https://updraftplus.com/faqs/there-appear-to-be-lots-of-extra-files-in-my-rackspace-cloud-files-container/" target="_blank">'.__('Also, you should read this important FAQ.', 'updraftplus').'</a></p>';
 			?>
 			</td>
 		</tr>
@@ -500,7 +515,7 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
  * Modifies handerbar template options
  *
  * @param array $opts handerbar template options
- * @return array - Modified handerbar template options
+ * @return Array - Modified handerbar template options
  */
 	public function transform_options_for_template($opts) {
 		$opts['apikey'] = trim($opts['apikey']);
@@ -574,13 +589,13 @@ class UpdraftPlus_BackupModule_cloudfiles_oldsdk extends UpdraftPlus_BackupModul
 
 		echo __('Success', 'updraftplus').": ".__('We accessed the container, and were able to create files within it.', 'updraftplus');
 
-		@$container_object->delete_object($try_file);
+		@$container_object->delete_object($try_file);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the method.
 	}
 }
 
 // Moved to the bottom to fix a bug in some version or install of PHP which required UpdraftPlus_BackupModule_cloudfiles_oldsdk to be defined earlier in the file (despite the conditionality) - see HS#19911
 if (version_compare(PHP_VERSION, '5.3.3', '>=') && (!defined('UPDRAFTPLUS_CLOUDFILES_USEOLDSDK') || UPDRAFTPLUS_CLOUDFILES_USEOLDSDK != true)) {
-	include_once(UPDRAFTPLUS_DIR.'/methods/cloudfiles-new.php');
+	updraft_try_include_file('methods/cloudfiles-new.php', 'include_once');
 	class UpdraftPlus_BackupModule_cloudfiles extends UpdraftPlus_BackupModule_cloudfiles_opencloudsdk {
 	}
 } else {

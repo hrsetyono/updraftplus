@@ -8,6 +8,8 @@ abstract class UpdraftPlus_RemoteSend {
 
 	protected $php_events = array();
 
+	private $job_id;
+	
 	/**
 	 * Class constructor
 	 */
@@ -17,6 +19,7 @@ abstract class UpdraftPlus_RemoteSend {
 		add_action('updraft_migrate_key_create', array($this, 'updraft_migrate_key_create'));
 		add_filter('updraft_migrate_key_create_return', array($this, 'updraft_migrate_key_create_return'), 10, 2);
 		add_action('updraft_migrate_key_delete', array($this, 'updraft_migrate_key_delete'));
+		add_action('updraft_migrate_delete_existingsites', array($this, 'updraft_migrate_delete_existingsites'));
 		add_filter('updraftplus_initial_jobdata', array($this, 'updraftplus_initial_jobdata'), 10, 3);
 		add_filter('updraft_printjob_beforewarnings', array($this, 'updraft_printjob_beforewarnings'), 10, 2);
 		add_action('plugins_loaded', array($this, 'plugins_loaded'));
@@ -72,7 +75,7 @@ abstract class UpdraftPlus_RemoteSend {
 	 *
 	 * @return array                 - the array response
 	 */
-	public function udrpc_action($response, $command, $data, $name_indicator) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	public function udrpc_action($response, $command, $data, $name_indicator) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Unused parameter is present because the method is used as a WP filter.
 
 		if (is_array($data) && isset($data['sender_public'])) {
 			// Do we already know the sender's public key?
@@ -117,7 +120,7 @@ abstract class UpdraftPlus_RemoteSend {
 		return $msg;
 	}
 
-	public function updraftplus_logline($line, $nonce, $level, $uniq_id) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	public function updraftplus_logline($line, $nonce, $level, $uniq_id) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Unused parameter is present because the method is used as a WP filter.
 		if ('notice' === $level && 'php_event' === $uniq_id) {
 			$this->php_events[] = $line;
 		}
@@ -170,7 +173,7 @@ abstract class UpdraftPlus_RemoteSend {
 		$existing_size = file_exists($fullpath) ? filesize($fullpath) : 0;
 
 		if ($start > $existing_size) {
-			return $this->return_rpc_message(array('response' => 'error', 'data' => "invalid_start_too_big:start=${start},existing_size=${existing_size}"));
+			return $this->return_rpc_message(array('response' => 'error', 'data' => "invalid_start_too_big:start={$start},existing_size={$existing_size}"));
 		}
 
 		if (false == ($fhandle = fopen($fullpath, 'ab'))) {
@@ -184,7 +187,7 @@ abstract class UpdraftPlus_RemoteSend {
 		
 		if (false === $write_status || (false == $write_status && !empty($data))) return $this->return_rpc_message(array('response' => 'error', 'data' => 'fwrite_failure'));
 
-		@fclose($fhandle);
+		@fclose($fhandle);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 
 		$our_keys = UpdraftPlus_Options::get_updraft_option('updraft_migrator_localkeys');
 		if (is_array($our_keys) && isset($our_keys[$name_hash]) && !empty($our_keys[$name_hash]['name'])) $updraftplus->log("Received data chunk on key ".$our_keys[$name_hash]['name']. " ($file, ".$start.", is_last=$is_last_chunk)");
@@ -241,7 +244,7 @@ abstract class UpdraftPlus_RemoteSend {
 	}
 
 	/**
-	 * This function will return a response to the remote site to acknowledge that we have recieved the upload_complete message and if this is a clone it call the ready_for_restore action
+	 * This function will return a response to the remote site to acknowledge that we have received the upload_complete message and if this is a clone it call the ready_for_restore action
 	 *
 	 * @param string $response       - a string response
 	 * @param array  $data           - an array of data
@@ -249,12 +252,26 @@ abstract class UpdraftPlus_RemoteSend {
 	 *
 	 * @return array                 - the array response
 	 */
-	public function udrpc_command_upload_complete($response, $data, $name_indicator) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	public function udrpc_command_upload_complete($response, $data, $name_indicator) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Unused parameter is present because the method is used as a WP filter.
 		if (!preg_match('/^([a-f0-9]+)\.migrator.updraftplus.com$/', $name_indicator, $matches)) return $response;
 		
 		if (defined('UPDRAFTPLUS_THIS_IS_CLONE') && UPDRAFTPLUS_THIS_IS_CLONE) {
 			$job_id = (is_array($data) && !empty($data['job_id'])) ? $data['job_id'] : null;
-			do_action('updraftplus_temporary_clone_ready_for_restore', $job_id);
+			
+			$signal_ready_for_restore_now = true;
+			
+			if (class_exists('UpdraftPlus_Remote_Communications_V2')) {
+				$test_udrpc = new UpdraftPlus_Remote_Communications_V2();
+				if (version_compare($test_udrpc->version, '1.4.21', '>=')) {
+					$signal_ready_for_restore_now = false;
+					$this->job_id = $job_id;
+					add_action('udrpc_action_send_response', array($this, 'udrpc_action_send_response'));
+				}
+			}
+			
+			if ($signal_ready_for_restore_now) {
+				do_action('updraftplus_temporary_clone_ready_for_restore', $job_id);
+			}
 		}
 
 		return $this->return_rpc_message(array(
@@ -263,6 +280,23 @@ abstract class UpdraftPlus_RemoteSend {
 		));
 	}
 
+	/**
+	 * UpdraftPlus_Remote_Communications is going to echo a response and then die. We pre-empt it.
+	 *
+	 * @param String $response
+	 */
+	public function udrpc_action_send_response($response) {
+	
+		global $updraftplus;
+	
+		$updraftplus->close_browser_connection($response);
+		
+		do_action('updraftplus_temporary_clone_ready_for_restore', $this->job_id);
+		
+		die;
+	
+	}
+	
 	public function updraftplus_initial_jobdata($initial_jobdata, $options, $split_every) {
 
 		if (is_array($options) && !empty($options['extradata']) && !empty($options['extradata']['services']) && preg_match('#remotesend/(\d+)#', $options['extradata']['services'], $matches)) {
@@ -388,7 +422,7 @@ abstract class UpdraftPlus_RemoteSend {
 				$res = array('e' => 1, 'r' => $err_msg);
 
 				if ($this->url_looks_internal($url)) {
-					$res['moreinfo'] = '<p>'.sprintf(__('The site URL you are sending to (%s) looks like a local development website. If you are sending from an external network, it is likely that a firewall will be blocking this.', 'updraftplus'), htmlspecialchars($url)).'</p>';
+					$res['moreinfo'] = '<p>'.sprintf(__('The site URL you are sending to (%s) looks like a local development website.', 'updraftplus'), htmlspecialchars($url)).' '.__('If you are sending from an external network, it is likely that a firewall will be blocking this.', 'updraftplus').'</p>';
 				}
 
 				// We got several support requests from people who didn't seem to be aware of other methods
@@ -408,7 +442,11 @@ abstract class UpdraftPlus_RemoteSend {
 
 			global $updraftplus_admin;
 
-			$ret .= '<input type="checkbox" checked="checked" id="remotesend_backupnow_db"> <label for="remotesend_backupnow_db">'.__("Database", 'updraftplus').'</label><br>';
+			$ret .= '<label class="updraft_checkbox" for="remotesend_backupnow_db"><input type="checkbox" checked="checked" id="remotesend_backupnow_db">'.__("Database", 'updraftplus').'(<a href="#" id="backupnow_database_showmoreoptions">...</a>)</label>';
+			$ret .= '<div id="backupnow_database_moreoptions" class="updraft-hidden" style="display:none;">';
+			$ret .= apply_filters('updraftplus_migration_additional_ui', $ret, '');
+			$ret .= '</div>';
+
 			$ret .= $updraftplus_admin->files_selector_widgetry('remotesend_', false, false);
 
 			$service = $updraftplus->just_one(UpdraftPlus_Options::get_updraft_option('updraft_service'));
@@ -435,7 +473,7 @@ abstract class UpdraftPlus_RemoteSend {
 			}
 
 			$ret .= apply_filters('updraft_backupnow_modal_afteroptions', '', 'remotesend_');
-			$ret .= '<button class="button-primary" style="height:30px; font-size:16px; margin-left: 3px; width:85px;" id="updraft_migrate_send_button" onclick="updraft_migrate_go_backup();">'.__('Send', 'updraftplus').'</button>';
+			$ret .= '<button class="button-primary" style="font-size:16px; margin-left: 3px; width:85px;" id="updraft_migrate_send_button" onclick="updraft_migrate_go_backup();">'.__('Send', 'updraftplus').'</button>';
 
 			return array('success' => 1, 'r' => $ret);
 		} catch (Exception $e) {
@@ -472,7 +510,7 @@ abstract class UpdraftPlus_RemoteSend {
 	 *
 	 * @return string        - the RSA remote key
 	 */
-	public function updraft_migrate_key_create_return($string, $data) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	public function updraft_migrate_key_create_return($string, $data) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Unused parameter is present because the method is used as a WP filter.
 		return $this->updraft_migrate_key_create($data);
 	}
 
@@ -488,7 +526,7 @@ abstract class UpdraftPlus_RemoteSend {
 		if (empty($data['name'])) die;
 		$name = stripslashes($data['name']);
 		
-		$size = (empty($data['size']) || !is_numeric($data['size']) || $data['size'] < 512) ? 2048 : (int) $data['size'];
+		$size = (empty($data['size']) || !is_numeric($data['size']) || $data['size'] < 1024) ? 2048 : (int) $data['size'];
 
 		$name_hash = md5($name); // 32 characters
 		$indicator_name = $name_hash.'.migrator.updraftplus.com';
@@ -515,7 +553,7 @@ abstract class UpdraftPlus_RemoteSend {
 			echo json_encode(array(
 				'bundle' => $local_bundle,
 				'r' => __('Key created successfully.', 'updraftplus').' '.__('You must copy and paste this key on the sending site now - it cannot be shown again.', 'updraftplus'),
-				'selector' => $this->get_remotesites_selector(array()),
+				'selector' => $this->get_remotesites_selector(),
 				'ourkeys' => $this->list_our_keys($our_keys),
 			));
 			die;
@@ -524,7 +562,7 @@ abstract class UpdraftPlus_RemoteSend {
 		if (extension_loaded('mbstring')) {
 			// phpcs:ignore  PHPCompatibility.IniDirectives.RemovedIniDirectives.mbstring_func_overloadDeprecated -- Commented out as this flags as not compatible with PHP 5.2
 			if (ini_get('mbstring.func_overload') & 2) {
-				echo json_encode(array('e' => 1, 'r' => __('Error:', 'updraftplus').' '.sprintf(__('The setting %s is turned on in your PHP settings. It is deprecated, causes encryption to malfunction, and should be turned off.', 'updraftplus'), 'mbstring.func_overload')));
+				echo json_encode(array('e' => 1, 'r' => __('Error:', 'updraftplus').' '.sprintf(__('The setting %s is turned on in your PHP settings.', 'updraftplus'), 'mbstring.func_overload').' '.__('It is deprecated, causes encryption to malfunction, and should be turned off.', 'updraftplus')));
 				die;
 			}
 		}
@@ -610,18 +648,30 @@ abstract class UpdraftPlus_RemoteSend {
 			if (!is_array($remotesites)) $remotesites = array();
 		}
 
+		$ret = '';
+
 		if (empty($remotesites)) {
-			return '<p id="updraft_migrate_receivingsites_nonemsg"><em>'.__('No receiving sites have yet been added.', 'updraftplus').'</em></p>';
+			$ret .= '<p id="updraft_migrate_receivingsites_nonemsg"><em>'.__('No receiving sites have yet been added.', 'updraftplus').'</em></p>';
 		} else {
-			$ret = '<p class="updraftplus-remote-sites-selector"><label>'.__('Send to site:', 'updraftplus').'</label> <select id="updraft_remotesites_selector">';
+			$ret .= '<p class="updraftplus-remote-sites-selector"><label>'.__('Send to site:', 'updraftplus').'</label> <select id="updraft_remotesites_selector">';
 			foreach ($remotesites as $k => $rsite) {
 				if (!is_array($rsite) || empty($rsite['url'])) continue;
 				$ret .= '<option value="'.esc_attr($k).'">'.htmlspecialchars($rsite['url']).'</option>';
 			}
 			$ret .= '</select>';
-			$ret .= ' <button class="button-primary" style="height:30px; font-size:16px; margin-left: 3px; width:85px;" id="updraft_migrate_send_button" onclick="updraft_migrate_send_backup();">'.__('Send', 'updraftplus').'</button>';
+			$ret .= ' <button class="button-primary" id="updraft_migrate_send_button" onclick="updraft_migrate_send_backup_options();">'.__('Send', 'updraftplus').'</button>';
 			$ret .= '</p>';
 		}
+
+		$ret .= '<div class="text-link-menu">';
+		$ret .= '<a href="#" class="updraft_migrate_add_site--trigger"><span class="dashicons dashicons-plus"></span>'.__('Add a site', 'updraftplus').'</a>';
+		$ret .= sprintf(
+			'<a href="javascript:void(0)" class="updraft_migrate_clear_sites" %s onclick="updraft_migrate_delete_existingsites(\'%s\');"><span class="dashicons dashicons-trash"></span>%s</a>',
+			empty($remotesites) ? 'style="display: none"' : '',
+			esc_js(__("You are about to permanently delete the list of existing sites.", 'updraftplus').' '.__("This action cannot be undone.", 'updraftplus').' '.__("'Cancel' to stop, 'OK' to delete.")),
+			__('Clear list of existing sites', 'updraftplus')
+		);
+		$ret .= '</div>';
 
 		return $ret;
 	}
@@ -643,7 +693,7 @@ abstract class UpdraftPlus_RemoteSend {
 				$ret .= '<p><strong>'.__('Existing keys', 'updraftplus').'</strong><br>';
 			}
 			$ret .= htmlspecialchars($key['name']);
-			$ret .= ' - <a href="'.UpdraftPlus::get_current_clean_url().'" onclick="updraft_migrate_local_key_delete(\''.esc_attr($k).'\'); return false;" class="updraft_migrate_local_key_delete" data-keyid="'.esc_attr($k).'">'.__('Delete', 'updraftplus').'</a>';
+			$ret .= ' - <a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'" onclick="updraft_migrate_local_key_delete(\''.esc_attr($k).'\'); return false;" class="updraft_migrate_local_key_delete" data-keyid="'.esc_attr($k).'">'.__('Delete', 'updraftplus').'</a>';
 			$ret .= '<br>';
 		}
 
@@ -651,5 +701,36 @@ abstract class UpdraftPlus_RemoteSend {
 
 		return $ret;
 
+	}
+
+	/**
+	 * Delete the list of existing remote sites from the database
+	 *
+	 * @return String The JSON format of the response of the deletion process
+	 */
+	public function updraft_migrate_delete_existingsites() {
+
+		global $wpdb;
+
+		$ret = array();
+
+		$old_val = $wpdb->suppress_errors();
+
+		UpdraftPlus_Options::delete_updraft_option('updraft_remotesites');
+
+		$remote_sites = UpdraftPlus_Options::get_updraft_option('updraft_remotesites');
+
+		if (is_array($remote_sites) && !empty($remote_sites)) {
+			$err_msg = __('There was an error while trying to remove the list of existing sites.', 'updraftplus');
+			$err_db = !empty($wpdb->last_error) ? ' ('.$wpdb->last_error.' - '.$wpdb->last_query.')' : '';
+			$ret['error'] = $err_msg.$err_db;
+		} else {
+			$ret['success'] = __('The list of existing sites has been removed', 'updraftplus');
+			$ret['html'] = $this->get_remotesites_selector();
+		}
+
+		$wpdb->suppress_errors($old_val);
+
+		echo json_encode($ret);
 	}
 }

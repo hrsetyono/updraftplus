@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) die('No direct access.');
  * @subpackage Upgrader
  * @since 3.7.0
  */
-class Automatic_Upgrader_Skin extends WP_Upgrader_Skin {
+class Automatic_Upgrader_Skin_Main extends WP_Upgrader_Skin {
 
 	protected $messages = array();
 
@@ -26,7 +26,7 @@ class Automatic_Upgrader_Skin extends WP_Upgrader_Skin {
 	 * Request filesystem credentials
 	 *
 	 * @param bool   $error 					   Check if there is an error: default is false
-	 * @param string $context 					   Context for credentails
+	 * @param string $context 					   Context for credentials
 	 * @param bool   $allow_relaxed_file_ownership Check if relaxed file ownership is allowed
 	 * @return bool
 	 */
@@ -56,7 +56,7 @@ class Automatic_Upgrader_Skin extends WP_Upgrader_Skin {
 	 *
 	 * @param  string|array|WP_Error $data THis is the data to be used for the feedback
 	 */
-	public function feedback($data) {
+	protected function updraft_feedback($data) {
 		if (is_wp_error($data)) {
 			$string = $data->get_error_message();
 		} elseif (is_array($data)) {
@@ -108,5 +108,19 @@ class Automatic_Upgrader_Skin extends WP_Upgrader_Skin {
 	public function bulk_header() {}
 
 	public function bulk_footer() {
+	}
+}
+
+global $updraftcentral_main;
+$wp_version = $updraftcentral_main->get_wordpress_version();
+
+if (version_compare($wp_version, '5.3', '>=')) {
+	if (!class_exists('Automatic_Upgrader_Skin')) require_once(dirname(__FILE__).'/automatic-upgrader-skin-compatibility.php');
+} else {
+	class Automatic_Upgrader_Skin extends Automatic_Upgrader_Skin_Main {
+
+		public function feedback($string) {
+			parent::updraft_feedback($string);
+		}
 	}
 }

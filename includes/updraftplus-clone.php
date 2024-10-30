@@ -18,7 +18,7 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 		switch ($code) {
 			case 'generic':
 			default:
-				return __('An error has occurred while processing your request. The server might be busy or you have lost your connection to the internet at the time of the request. Please try again later.', 'updraftplus');
+				return __('An error has occurred while processing your request.', 'updraftplus').' '.__('The server might be busy or you have lost your connection to the internet at the time of the request.', 'updraftplus').' '.__('Please try again later.', 'updraftplus');
 				break;
 		}
 	}
@@ -53,7 +53,7 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 	}
 
 	/**
-	 * Executes login or registration process. Connects and sends request to the UpdraftPlus clone
+	 * Executes login or registration process. Connects and sends request to the UpdraftClone
 	 * and returns the response coming from the server
 	 *
 	 * @internal
@@ -93,20 +93,21 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 	}
 
 	/**
-	 * Executes the create clone process. Connects and sends request to the UpdraftPlus clone and returns the response coming from the server
+	 * Executes the create clone process. Connects and sends request to the UpdraftClone and returns the response coming from the server
 	 *
 	 * @internal
 	 * @param array $data - The submitted form data
 	 * @return array      - The response from the request
 	 */
 	public function create_clone($data) {
-		global $table_prefix;
-
+		global $updraftplus, $table_prefix;
+		
 		$action = 'updraftplus_clone_create';
 		if (empty($data['site_url'])) $data['site_url'] = trailingslashit(network_site_url());
 		if (empty($data['label'])) $data['label'] = sprintf(__('Clone of %s', 'updraftplus'), trailingslashit(network_site_url()));
 		if (empty($data['install_info']['table_prefix'])) $data['install_info']['table_prefix'] = $table_prefix;
 		$subdirectory = parse_url(network_site_url(), PHP_URL_PATH);
+		if (empty($data['install_info']['package'])) $data['install_info']['package'] = 'starter';
 		if (empty($data['install_info']['subdirectory'])) $data['install_info']['subdirectory'] = !empty($subdirectory) ? $subdirectory : '/';
 		if (empty($data['install_info']['locale'])) $data['install_info']['locale'] = get_locale();
 		if (empty($data['install_info']['owner_id']) && empty($data['install_info']['owner_login'])) {
@@ -116,8 +117,9 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 		}
 		if (is_multisite()) {
 			$data['install_info']['multisite'] = true;
-			$data['install_info']['multisite_subdomain_install'] = is_subdomain_install();
+			$data['install_info']['multisite_type'] = is_subdomain_install() ? 'subdomain' : 'subfolder';
 		}
+		if (empty($data['install_info']['requested_by'])) $data['install_info']['requested_by'] = $updraftplus->version;
 
 		$response = $this->send_remote_request($data, $action);
 		
@@ -125,7 +127,7 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 	}
 
 	/**
-	 * Executes the clone status process. Connects and sends request to the UpdraftPlus clone and returns the response coming from the server
+	 * Executes the clone status process. Connects and sends request to the UpdraftClone and returns the response coming from the server
 	 *
 	 * @internal
 	 * @param array $data - The submitted form data
@@ -142,7 +144,7 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 	}
 
 	/**
-	 * Executes the clone info poll. Connects and sends request to the UpdraftPlus clone and returns the response coming from the server
+	 * Executes the clone info poll. Connects and sends request to the UpdraftClone and returns the response coming from the server
 	 *
 	 * @internal
 	 * @param array $data - The submitted form data
@@ -159,15 +161,19 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 	}
 
 	/**
-	 * Executes the clone checkin. Connects and sends request to UpdraftPlus and returns the response coming from the server
+	 * Executes the backup checkin. Connects and sends request to UpdraftPlus and returns the response coming from the server
 	 *
 	 * @internal
 	 * @param array $data - The submitted form data
 	 * @return array      - The response from the request
 	 */
-	public function clone_checkin($data) {
-		$action = 'updraftplus_clone_checkin';
+	public function backup_checkin($data) {
+		$action = 'updraftplus_backup_checkin';
 		if (empty($data['site_url'])) $data['site_url'] = trailingslashit(network_site_url());
+		if (!empty($data['log_contents'])) {
+			$data['log_contents'] = base64_encode(gzcompress($data['log_contents']));
+			$data['format'] = 'gzcompress';
+		}
 
 		$response = $this->send_remote_request($data, $action);
 
@@ -175,7 +181,7 @@ class UpdraftPlus_Clone extends UpdraftPlus_Login {
 	}
 
 	/**
-	 * Executes the clone failed delete process. Connects and sends request to the UpdraftPlus clone and returns the response coming from the server
+	 * Executes the clone failed delete process. Connects and sends request to the UpdraftClone and returns the response coming from the server
 	 *
 	 * @internal
 	 * @param array $data - The submitted form data

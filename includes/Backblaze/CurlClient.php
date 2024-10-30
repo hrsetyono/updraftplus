@@ -100,6 +100,10 @@ class UpdraftPlus_Backblaze_CurlClient {
 			curl_setopt($session, CURLOPT_FOLLOWLOCATION, true);
 		}
 
+		if (isset($options['session'])) {
+			return $session;
+		}
+
 		$response = curl_exec($session);
 		
 		if (0 != ($curl_error = curl_errno($session))) {
@@ -258,7 +262,7 @@ class UpdraftPlus_Backblaze_CurlClient {
 				'Authorization' => $this->authToken,
 			),
 			'json'	=> array(
-				'fileId'		=> $options['FileId'],
+				'fileId'		=> (string) $options['FileId'],
 				'partSha1Array' => $options['FilePartSha1Array'],
 			),
 		));
@@ -266,7 +270,7 @@ class UpdraftPlus_Backblaze_CurlClient {
 		if (empty($response['contentLength'])) {
 			throw new Exception('B2: uploadLargeFinish error: contentLength returned was empty ('.serialize($response).')');
 		}
-		
+
 		return new UpdraftPlus_Backblaze_File(
 			$response['fileId'],
 			$response['fileName'],
@@ -302,7 +306,8 @@ class UpdraftPlus_Backblaze_CurlClient {
 		if (!isset($response['buckets'])) throw new Exception('Failed to list buckets: '.serialize($response));
 		
 		foreach ($response['buckets'] as $bucket) {
-			$buckets[] = new UpdraftPlus_Backblaze_Bucket($bucket['bucketId'], $bucket['bucketName'], $bucket['bucketType']);
+			$is_file_lock_enabled = isset($bucket['fileLockConfiguration']['value']['isFileLockEnabled']) ? $bucket['fileLockConfiguration']['value']['isFileLockEnabled'] : false;
+			$buckets[] = new UpdraftPlus_Backblaze_Bucket($bucket['bucketId'], $bucket['bucketName'], $bucket['bucketType'], $is_file_lock_enabled);
 		}
 
 		
@@ -311,7 +316,8 @@ class UpdraftPlus_Backblaze_CurlClient {
 
 	protected function getBucketIdFromName($name) {
 		$buckets = $this->listBuckets();
-
+		$name = strtolower($name);
+		
 		foreach ($buckets as $bucket) {
 			if ($bucket->getName() === $name) {
 				return $bucket->getId();
@@ -396,7 +402,7 @@ class UpdraftPlus_Backblaze_CurlClient {
 				break;
 			}
 
-			$nextFileName = $response['nextFileName'];
+			$json['startFileName'] = $response['nextFileName'];
 		}
 
 		return $files;
@@ -453,11 +459,11 @@ class UpdraftPlus_Backblaze_CurlClient {
 
 		$response = $this->request('POST', $uploadEndpoint, array(
 			'headers' => array(
-				'Authorization'					  => $uploadAuthToken,
-				'Content-Type'					   => $options['FileContentType'],
-				'Content-Length'					 => $size,
-				'X-Bz-File-Name'					 => $options['FileName'],
-				'X-Bz-Content-Sha1'				  => $hash,
+				'Authorization'                      => $uploadAuthToken,
+				'Content-Type'                       => $options['FileContentType'],
+				'Content-Length'                     => $size,
+				'X-Bz-File-Name'                     => $options['FileName'],
+				'X-Bz-Content-Sha1'                  => $hash,
 				'X-Bz-Info-src_last_modified_millis' => $options['FileLastModified'],
 			),
 			'body'	=> $options['Body'],
@@ -533,6 +539,13 @@ class UpdraftPlus_Backblaze_CurlClient {
 		);
 	}
 
+	/**
+	 * Delete a file
+	 *
+	 * @param Array $options - possible keys are FileName, FileId, BucketName
+	 *
+	 * @return Boolean. Can also throw an exception; including UpdraftPlus_Backblaze_NotFoundException if the file was not found.
+	 */
 	public function deleteFile($options) {
 		if (!isset($options['FileName'])) {
 			$file = $this->getFile($options);
@@ -558,11 +571,103 @@ class UpdraftPlus_Backblaze_CurlClient {
 
 		return (is_array($delete_result) && !empty($delete_result['fileId'])) ? true : false;
 	}
+
+	/**
+	 * Delete multiple files
+	 *
+	 * @param Array  $files_to_delete - array of possible files to delete; sub-keys are FileName, FileId, BucketName
+	 * @param String $bucket_name	  - the bucket that files are being deleted from
+	 * @param String|Null			  - path prefix (to prevent unnecessary scanning of other paths)
+	 *
+	 * @return Array|Boolean
+	 */
+	public function deleteMultipleFiles($files_to_delete, $bucket_name, $path_prefix = null) {
+		if (count($files_to_delete) == 0) {
+			return false;
+		}
+
+		$active       = null;
+		$sessions     = [];
+		$result       = [];
+		$bulk_session = curl_multi_init();
+
+		$list_options = array(
+			'BucketName' => $bucket_name
+		);
+		
+		if (is_string($path_prefix) && '' !== $path_prefix) $list_options['Prefix'] = $path_prefix;
+		
+		$files = $this->listFiles($list_options);
+
+		$files_lookup = array();
+
+		foreach ($files as $file_object) {
+			$file_name = $file_object->getName();
+			$file_id = $file_object->getId();
+			$files_lookup[$file_name] = $file_id;
+		}
+
+		foreach ($files_to_delete as $file_identification) {
+			
+			try {
+				if (!isset($file_identification['FileName'])) {
+					// We should not enter here as we always pass a file name but just in case
+					$file = $this->getFile($file_identification);
+					$file_identification['FileName'] = $file->getName();
+					$file_identification['FileId'] = $file->getId();
+				} elseif (!isset($file_identification['FileId'])) {
+					if (isset($files_lookup[$file_identification['FileName']])) {
+						$file_identification['FileId'] = $files_lookup[$file_identification['FileName']];
+					} else {
+						// We should not enter here as all the files should be in the same bucket but just in case
+						$file = $this->getFile($file_identification);
+						$file_identification['FileId'] = $file->getId();
+					}
+				}
+			} catch (UpdraftPlus_Backblaze_NotFoundException $e) {
+				array_push($sessions, true);
+				continue;
+			}
+
+			$session = $this->request('POST', $this->apiUrl . '/b2_delete_file_version', array(
+				'headers' => array(
+					'Authorization' => $this->authToken,
+				),
+				'json'	=> array(
+					'fileName' => $file_identification['FileName'],
+					'fileId'   => $file_identification['FileId'],
+				),
+				'session' => true
+			));
+			array_push($sessions, $session);
+			curl_multi_add_handle($bulk_session, $session);
+		}
+
+		do {
+			$status = curl_multi_exec($bulk_session, $active);
+			if ($active) {
+				curl_multi_select($bulk_session);
+			}
+		} while ($active && $status == CURLM_OK);
+
+		foreach ($sessions as $session) {
+			if (is_bool($session)) {
+				array_push($result, $session);
+				continue;
+			}
+			$response = curl_multi_getcontent($session);
+			array_push($result, $response);
+			curl_multi_remove_handle($bulk_session, $session);
+		}
+		curl_multi_close($bulk_session);
+
+		return (is_array($result) && !empty($result)) ? $result : false;
+	}
 	
 	/**
 	 * Create a private bucket with the given name.
 	 *
-	 * @param string $bucket_name - valid bucket name
+	 * @param String $bucket_name - valid bucket name
 	 * @throws Exception
 	 *
 	 * @return boolean - If bucket created successfully, it returns true otherwise false.
@@ -593,7 +698,61 @@ class UpdraftPlus_Backblaze_CurlClient {
 			return true;
 		}
 		return false;
-    }	
+    }
+
+	/**
+	 * Set object lock for a file in a B2 storage bucket.
+	 *
+	 * @param string $id                   The ID of the file to set object lock for.
+	 * @param string $filename             The name of the file.
+	 * @param int    $object_lock_duration The duration (in days) for which to set object lock.
+	 *
+	 * @return array $response             The array of response.
+	 */
+	public function setObjectLock($id, $filename, $object_lock_duration) {
+		// Calculate the retain until timestamp (milliseconds) based on the $object_lock_duration.
+		$retain_until_timestamp = (time() + ($object_lock_duration * 86400)) * 1000;
+
+		// Make a request to the B2 API to update file retention settings.
+		$response = $this->request('POST', $this->apiUrl.'/b2_update_file_retention', array(
+			'headers' => array(
+				'Authorization' => $this->authToken,
+			),
+			'json' => array(
+				'fileId' => $id,
+				'fileName' => $filename,
+				'fileRetention' => array(
+					'mode' => 'compliance',
+					'retainUntilTimestamp' => $retain_until_timestamp
+				)
+			)
+		));
+
+		return $response;
+	}
+
+	/**
+	 * Set object lock for a B2 storage bucket.
+	 *
+	 * @param string $id       The ID of the bucket to set object lock for.
+	 *
+	 * @return array $response The array of response.
+	 */
+	public function setObjectLockToBucket($id) {
+		// Make a request to the B2 API to update file retention settings.
+		$response = $this->request('POST', $this->apiUrl.'/b2_update_bucket', array(
+			'headers' => array(
+				'Authorization' => $this->authToken,
+			),
+			'json' => array(
+				'accountId' => $this->accountId,
+				'bucketId' => $id,
+				'fileLockEnabled' => true
+			)
+		));
+
+		return $response;
+	}
 
 }
 
@@ -604,6 +763,7 @@ final class UpdraftPlus_Backblaze_Bucket {
 	protected $id;
 	protected $name;
 	protected $type;
+	protected $objectLockEnabled;
 
 	/**
 	 * Bucket constructor.
@@ -612,10 +772,11 @@ final class UpdraftPlus_Backblaze_Bucket {
 	 * @param $name
 	 * @param $type
 	 */
-	public function __construct($id, $name, $type) {
+	public function __construct($id, $name, $type, $objectLockEnabled) {
 		$this->id   = $id;
-		$this->name = $name;
+		$this->name = strtolower($name);
 		$this->type = $type;
+		$this->objectLockEnabled = $objectLockEnabled;
 	}
 
 	public function getId() {
@@ -628,6 +789,10 @@ final class UpdraftPlus_Backblaze_Bucket {
 
 	public function getType() {
 		return $this->type;
+	}
+
+	public function isObjectLockEnabled() {
+		return $this->objectLockEnabled;
 	}
 }
 

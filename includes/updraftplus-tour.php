@@ -40,7 +40,7 @@ class UpdraftPlus_Tour {
 		add_filter('plugin_action_links', array($this, 'plugin_action_links'), 10, 2);
 
 		// only init and load assets if the tour hasn't been canceled
-		if (isset($_REQUEST['updraftplus_tour']) && 0 === intval($_REQUEST['updraftplus_tour'])) {
+		if (isset($_REQUEST['updraftplus_tour']) && 0 === (int) $_REQUEST['updraftplus_tour']) {
 			$this->set_tour_status(array('current_step' => 'start'));
 			return;
 		}
@@ -51,7 +51,7 @@ class UpdraftPlus_Tour {
 		}
 
 		// if 'Take tour' link was used, reset tour
-		if (isset($_REQUEST['updraftplus_tour']) && 1 === intval($_REQUEST['updraftplus_tour'])) {
+		if (isset($_REQUEST['updraftplus_tour']) && 1 === (int) $_REQUEST['updraftplus_tour']) {
 			$this->reset_tour_status();
 		}
 
@@ -80,10 +80,11 @@ class UpdraftPlus_Tour {
 		}
 
 		$script_suffix = $updraftplus->use_unminified_scripts() ? '' : '.min';
+		$updraft_min_or_not = $updraftplus->get_updraftplus_file_version();
 		wp_enqueue_script('updraftplus-tether-js', trailingslashit(UPDRAFTPLUS_URL).'includes/tether/tether'.$script_suffix.'.js', $updraftplus->version, true);
 		wp_enqueue_script('updraftplus-shepherd-js', trailingslashit(UPDRAFTPLUS_URL).'includes/tether-shepherd/shepherd'.$script_suffix.'.js', array('updraftplus-tether-js'), $updraftplus->version, true);
 		wp_enqueue_style('updraftplus-shepherd-css', trailingslashit(UPDRAFTPLUS_URL).'css/tether-shepherd/shepherd-theme-arrows-plain-buttons'.$script_suffix.'.css', false, $updraftplus->version);
-		wp_enqueue_style('updraftplus-tour-css', trailingslashit(UPDRAFTPLUS_URL).'css/updraftplus-tour'.$script_suffix.'.css', false, $updraftplus->version);
+		wp_enqueue_style('updraftplus-tour-css', trailingslashit(UPDRAFTPLUS_URL).'css/updraftplus-tour'.$updraft_min_or_not.'.css', false, $updraftplus->version);
 		wp_register_script('updraftplus-tour-js', trailingslashit(UPDRAFTPLUS_URL).'js/tour.js', array('updraftplus-tether-js'), $updraftplus->version, true);
 		
 		$tour_data = array(
@@ -126,7 +127,7 @@ class UpdraftPlus_Tour {
 			),
 			'settings_remote_storage' => array(
 				'title' => __("Remote storage", 'updraftplus'),
-				'text' => __("Now select a remote storage destination to protect against server-wide threats. If not, your backups remain on the same server as your site.", 'updraftplus')
+				'text' => __('Now select a remote storage destination to protect against server-wide threats.', 'updraftplus').' '.__('If not, your backups remain on the same server as your site.', 'updraftplus')
 					.'<div class="ud-notice">'
 					.'<h3>'.__('Try UpdraftVault!').'</h3>'
 					.__("UpdraftVault is our remote storage which works seamlessly with UpdraftPlus.", 'updraftplus')
@@ -158,7 +159,7 @@ class UpdraftPlus_Tour {
 				'text' => __('Thank you for taking the tour.', 'updraftplus')
 					.'<div class="ud-notice">'
 					.'<h3>'.__('UpdraftPlus Premium and addons', 'updraftplus').'</h3>'
-					.__('UpdraftPlus Premium has many more exciting features!', 'updraftplus').' <a href="'.apply_filters('updraftplus_com_link', 'https://updraftplus.com/shop/updraftplus-premium/').'" target="_blank">'.__('Find out more here.', 'updraftplus').'</a>'
+					.__('UpdraftPlus Premium has many more exciting features!', 'updraftplus').' <a href="'.$updraftplus->get_url('premium').'" target="_blank">'.__('Find out more here.', 'updraftplus').'</a>'
 					.'</div>',
 				'attach_to' => '#updraft-navtab-addons top',
 				'button' => __('Finish', 'updraftplus')
@@ -170,7 +171,7 @@ class UpdraftPlus_Tour {
 		);
 
 		if (isset($_REQUEST['tab'])) {
-			$tour_data['show_tab_on_load'] = '#updraft-navtab-'.esc_attr($_REQUEST['tab']);
+			$tour_data['show_tab_on_load'] = '#updraft-navtab-'.esc_attr(sanitize_text_field($_REQUEST['tab']));
 		}
 
 		// Change the data for premium users
@@ -178,7 +179,7 @@ class UpdraftPlus_Tour {
 
 			$tour_data['settings_remote_storage'] = array(
 				'title' => __("Remote storage", 'updraftplus'),
-				'text' => __("Now select a remote storage destination to protect against server-wide threats. If not, your backups remain on the same server as your site.", 'updraftplus')
+				'text' => __('Now select a remote storage destination to protect against server-wide threats.', 'updraftplus').' '.__('If not, your backups remain on the same server as your site.', 'updraftplus')
 					.'<div class="ud-notice">'
 					.'<h3>'.__('Try UpdraftVault!').'</h3>'
 					.__("UpdraftVault is our remote storage which works seamlessly with UpdraftPlus.", 'updraftplus')
@@ -192,7 +193,7 @@ class UpdraftPlus_Tour {
 			if ($updraftplus_addons2->connection_status() && !is_wp_error($updraftplus_addons2->connection_status())) {
 				$tour_data['premium'] = array(
 					'title' => 'UpdraftPlus Premium',
-					'text' => __('Thank you for taking the tour. You are now all set to use UpdraftPlus!', 'updraftplus'),
+					'text' => __('Thank you for taking the tour.', 'updraftplus').' '.__('You are now all set to use UpdraftPlus!', 'updraftplus'),
 					'attach_to' => '#updraft-navtab-addons top',
 					'button' => __('Finish', 'updraftplus')
 				);

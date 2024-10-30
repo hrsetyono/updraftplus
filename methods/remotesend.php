@@ -2,7 +2,7 @@
 
 if (!defined('UPDRAFTPLUS_DIR')) die('No direct access allowed');
 
-if (!class_exists('UpdraftPlus_RemoteStorage_Addons_Base_v2')) require_once(UPDRAFTPLUS_DIR.'/methods/addon-base-v2.php');
+if (!class_exists('UpdraftPlus_RemoteStorage_Addons_Base_v2')) updraft_try_include_file('methods/addon-base-v2.php', 'require_once');
 
 class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addons_Base_v2 {
 
@@ -13,6 +13,12 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 	private $remotesend_chunked_wp_error;
 	
 	private $try_format_upgrade = false;
+
+	private $remotesend_file_size;
+
+	private $remotesend_uploaded_size;
+
+	private $remote_sent_defchunk_transient;
 	
 	/**
 	 * Class constructor
@@ -44,13 +50,6 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 		global $updraftplus;
 		$opts = $this->options;
 		
-		static $registered_completion_event = false;
-		if (!$registered_completion_event) {
-			// This is here, instead of the constructor, to make sure that, if multiple objects are insantiated, then only the one actually used for uploading gets involved in the upload_complete event
-			$registered_completion_event = true;
-			add_action('updraftplus_remotesend_upload_complete', array($this, 'upload_complete'));
-		}
-		
 		try {
 			$storage = $this->bootstrap();
 			if (is_wp_error($storage)) throw new Exception($storage->get_error_message());
@@ -70,7 +69,7 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 		$get_remote_size = $this->send_message('get_file_status', $file, 30);
 		
 		if (is_wp_error($get_remote_size)) {
-			throw new Exception($get_remote_size->get_error_message().' ('.$get_remote_size->get_error_code().')');
+			throw new Exception($get_remote_size->get_error_message().' (get_file_status: '.$get_remote_size->get_error_code().')');
 		}
 
 		if (!is_array($get_remote_size) || empty($get_remote_size['response'])) throw new Exception(__('Unexpected response:', 'updraftplus').' '.serialize($get_remote_size));
@@ -104,8 +103,6 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 		$this->remote_sent_defchunk_transient = 'ud_rsenddck_'.md5($opts['name_indicator']);
 
 		if (empty($this->default_chunk_size)) {
-		
-			$clone_would_like = $updraftplus->verify_free_memory(4194304*2) ? 4194304 : 2097152;
 		
 			// Default is 2MB. After being b64-encoded twice, this is ~ 3.7MB = 113 seconds on 32KB/s uplink
 			$default_chunk_size = $updraftplus->jobdata_get('clone_job') ? 4194304 : 2097152;
@@ -174,8 +171,6 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 
 		global $updraftplus;
 
-		$storage = $this->get_storage();
-		
 		$chunk = fread($fp, $upload_size);
 
 		if (false === $chunk) {
@@ -254,7 +249,6 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 			// Could interpret the codes to get more interesting messages directly to the user
 			// The textual prefixes here were added after 1.12.5 - hence optional when parsing
 			if (preg_match('/^invalid_start_too_big:(start=)?(\d+),(existing_size=)?(\d+)/', $msg, $matches)) {
-				$attempted_start = $matches[1];
 				$existing_size = $matches[2];
 				if ($existing_size < $this->remotesend_uploaded_size) {
 					// The file on the remote system seems to have shrunk. Could be some load-balancing system with a distributed filesystem that is only eventually consistent.
@@ -272,7 +266,6 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 			return false;
 		} else {
 			$remote_size = (int) $put_chunk['data']['size'];
-			$remote_status = $put_chunk['data']['status'];
 			$this->remotesend_uploaded_size = $remote_size;
 		}
 
@@ -281,16 +274,24 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 	}
 
 	/**
-	 * This function is called via an action and will send a message to the remote site to inform it that the backup has finished sending
+	 * This function will send a message to the remote site to inform it that the backup has finished sending, on success will update the jobdata key upload_completed and return true else false
+	 *
+	 * @return Boolean - returns true on success or false on error, all errors are logged to the backup log
 	 */
-	public function upload_complete() {
+	public function upload_completed() {
 		global $updraftplus;
 
 		$service = $updraftplus->jobdata_get('service');
 		$remote_sent = (!empty($service) && ((is_array($service) && in_array('remotesend', $service)) || 'remotesend' === $service));
 
 		if (!$remote_sent) return;
-		
+
+		// If this is a partial upload then don't send the upload complete signal
+		if ('partialclouduploading' == $updraftplus->jobdata_get('jobstatus')) return;
+
+		// ensure options have been loaded
+		$this->options = $this->get_options();
+
 		try {
 			$storage = $this->bootstrap();
 			if (is_wp_error($storage)) throw new Exception($storage->get_error_message());
@@ -304,19 +305,33 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 		
 		if (is_wp_error($storage)) return $updraftplus->log_wp_error($storage, false, true);
 
-		$response = $this->send_message('upload_complete', array('job_id' => $updraftplus->nonce), 30);
+		for ($i = 0; $i < 3; $i++) {
 
-		if (is_wp_error($response)) {
-			throw new Exception($response->get_error_message().' ('.$response->get_error_code().')');
+			$success = false;
+
+			$response = $this->send_message('upload_complete', array('job_id' => $updraftplus->nonce), 30);
+
+			if (is_wp_error($response)) {
+				$message = $response->get_error_message().' (upload_complete: '.$response->get_error_code().')';
+				$this->log("RPC service error: ".$message);
+				$this->log($message, 'error');
+			} elseif (!is_array($response) || empty($response['response'])) {
+				$this->log("RPC service error: ".serialize($response));
+				$this->log(serialize($response), 'error');
+			} elseif ('error' == $response['response']) {
+				// Could interpret the codes to get more interesting messages directly to the user
+				$msg = $response['data'];
+				$this->log("RPC service error: ".$msg);
+				$this->log($msg, 'error');
+			} elseif ('file_status' == $response['response']) {
+				$success = true;
+				break;
+			}
+
+			sleep(5);
 		}
 
-		if (!is_array($response) || empty($response['response'])) throw new Exception(__('Unexpected response:', 'updraftplus').' '.serialize($response));
-
-		if ('error' == $response['response']) {
-			$msg = $response['data'];
-			// Could interpret the codes to get more interesting messages directly to the user
-			throw new Exception(__('Error', 'updraftplus').': '.$msg);
-		}
+		return $success;
 	}
 
 	/**
@@ -382,16 +397,18 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 		return $response;
 	}
 
-	public function do_bootstrap($opts, $connect = true) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	public function do_bootstrap($opts, $connect = true) {// phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable -- $connect unused
 	
 		global $updraftplus;
+
+		$updraftplus->ensure_phpseclib();
 	
-		if (!class_exists('UpdraftPlus_Remote_Communications')) include_once(apply_filters('updraftplus_class_udrpc_path', UPDRAFTPLUS_DIR.'/includes/class-udrpc.php', $updraftplus->version));
+		if (!class_exists('UpdraftPlus_Remote_Communications_V2')) include_once(apply_filters('updraftplus_class_udrpc_path', UPDRAFTPLUS_DIR.'/vendor/team-updraft/common-libs/src/updraft-rpc/class-udrpc2.php', $updraftplus->version));
 
 		$opts = $this->get_opts();
 
 		try {
-			$ud_rpc = new UpdraftPlus_Remote_Communications($opts['name_indicator']);
+			$ud_rpc = new UpdraftPlus_Remote_Communications_V2($opts['name_indicator']);
 			if (!empty($opts['format_support']) && 2 == $opts['format_support'] && !empty($opts['local_private']) && !empty($opts['local_public']) && !empty($opts['remote_got_public'])) {
 				$ud_rpc->set_message_format(2);
 				$ud_rpc->set_key_remote($opts['key']);
@@ -441,8 +458,8 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 	
 		// Don't call self::log() - this then requests options (to get the label), causing an infinite loop.
 	
-		global $updraftplus;
-		if (empty($updraftplus_admin)) include_once(UPDRAFTPLUS_DIR.'/admin.php');
+		global $updraftplus, $updraftplus_admin;
+		if (empty($updraftplus_admin)) updraft_try_include_file('admin.php', 'include_once');
 		
 		$clone_job = $updraftplus->jobdata_get('clone_job');
 		
@@ -451,20 +468,27 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 
 		// check that we don't already have the needed information
 		if (is_array($opts) && !empty($opts['url']) && !empty($opts['name_indicator']) && !empty($opts['key'])) return $opts;
-
+		$current_stage = $updraftplus->jobdata_get('jobstatus');
 		$updraftplus->jobdata_set('jobstatus', 'clonepolling');
 		$clone_id = $updraftplus->jobdata_get('clone_id');
 		$clone_url = $updraftplus->jobdata_get('clone_url');
 		$clone_key = $updraftplus->jobdata_get('clone_key');
 		$secret_token = $updraftplus->jobdata_get('secret_token');
+		$clone_region = $updraftplus->jobdata_get('clone_region');
 			
 		if (empty($clone_id) && empty($secret_token)) return $opts;
+
+		$updraftplus->log("Polling for UpdraftClone (ID: {$clone_id} Region: {$clone_region}) migration information.");
 		
 		$params = array('clone_id' => $clone_id, 'secret_token' => $secret_token);
 		$response = $updraftplus->get_updraftplus_clone()->clone_info_poll($params);
 
 		if (!isset($response['status']) || 'success' != $response['status']) {
-			$updraftplus->log("UpdraftClone migration information poll failed with code: " . $response['code']);
+			if ('clone_network_not_found' == $response['code'] && 0 === $updraftplus->current_resumption) {
+				$updraftplus->log("UpdraftClone network information is not ready yet please wait while the clone finishes provisioning.");
+			} else {
+				$updraftplus->log("UpdraftClone migration information poll failed with code: " . $response['code']);
+			}
 			return $opts;
 		}
 
@@ -495,7 +519,7 @@ class UpdraftPlus_BackupModule_remotesend extends UpdraftPlus_RemoteStorage_Addo
 		$remotesites[] = $clone_key;
 		UpdraftPlus_Options::update_updraft_option('updraft_remotesites', $remotesites);
 
-		$updraftplus->jobdata_set_multi('clone_url', $clone_url, 'clone_key', $clone_key, 'remotesend_info', $clone_key, 'jobstatus', 'clouduploading');
+		$updraftplus->jobdata_set_multi('clone_url', $clone_url, 'clone_key', $clone_key, 'remotesend_info', $clone_key, 'jobstatus', $current_stage);
 
 		return $clone_key;
 	}

@@ -8,7 +8,7 @@
 		<?php
 			if (!defined('UPDRAFTPLUS_NOADS_B')) {
 				?>
-				<a href="<?php echo apply_filters('updraftplus_com_link', 'https://updraftplus.com/shop/updraftplus-premium/');?>" target="_blank"><?php _e("Premium", 'updraftplus'); ?></a> |
+				<a href="<?php echo $updraftplus->get_url('premium');?>" target="_blank"><?php _e("Premium", 'updraftplus'); ?></a> |
 			<?php
 			}
 		?>
@@ -22,6 +22,5 @@
 			<?php
 			}
 	?>
-		<a href="https://david.dw-perspective.org.uk" target="_blank"><?php _e("Lead developer's homepage", 'updraftplus');?></a> | 
-		<a href="<?php echo apply_filters('updraftplus_com_link', "https://updraftplus.com/support/frequently-asked-questions/");?>" target="_blank"><?php _e('FAQs', 'updraftplus'); ?></a> | <a href="https://www.simbahosting.co.uk/s3/shop/" target="_blank"><?php _e('More plugins', 'updraftplus');?></a> - <?php _e('Version', 'updraftplus');?>: <?php echo $updraftplus->version; ?>
+		<a href="https://david.dw-perspective.org.uk" target="_blank"><?php _e("Lead developer's homepage", 'updraftplus');?></a> | <a aria-label="F, A, Q" href="<?php echo apply_filters('updraftplus_com_link', "https://updraftplus.com/support/frequently-asked-questions/");?>" target="_blank"><?php _e('FAQs', 'updraftplus'); ?></a> | <a aria-label="more plug-ins" href="https://www.simbahosting.co.uk/s3/shop/" target="_blank"><?php _e('More plugins', 'updraftplus');?></a> - <span tabindex="0"><?php _e('Version', 'updraftplus');?>: <?php echo $updraftplus->version; ?></span>
 	</div>

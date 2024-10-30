@@ -12,35 +12,35 @@ class Updraft_Dashboard_News {
 	 *
 	 * @var String
 	 */
-	private $feed_url;
+	protected $feed_url;
 	
 	/**
 	 * news page URL
 	 *
 	 * @var String
 	 */
-	private $link;
+	protected $link;
 	
 	/**
 	 * various translations to use in the UI
 	 *
 	 * @var Array
 	 */
-	private $translations;
+	protected $translations;
 	
 	/**
 	 * slug to use, where needed
 	 *
 	 * @var String
 	 */
-	private $slug;
+	protected $slug;
 	
 	/**
 	 * Valid ajax callback pages
 	 *
 	 * @var Array
 	 */
-	private $valid_callback_pages;
+	protected $valid_callback_pages;
 	
 	/**
 	 * constructor of class Updraft_Dashboard_News
@@ -82,7 +82,8 @@ class Updraft_Dashboard_News {
 	 */
 	private function get_transient_name() {
 		$locale = function_exists('get_user_locale') ? get_user_locale() : get_locale();
-		include(ABSPATH.WPINC.'/version.php');
+		global $wp_version;
+		@include(ABSPATH.WPINC.'/version.php');// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 		$dash_prefix = version_compare($wp_version, '4.8', '>=') ? 'dash_v2_' : 'dash_';
 		return version_compare($wp_version, '4.3', '>=') ? $dash_prefix.md5('dashboard_primary_'.$locale) : 'dash_'.md5('dashboard_primary');
 	}
@@ -144,7 +145,7 @@ class Updraft_Dashboard_News {
 	 *
 	 * @return Boolean True if an ajax for the WP dashboard news
 	 */
-	private function do_ajax_dashboard_news() {
+	protected function do_ajax_dashboard_news() {
 		$ajax_callback_page = !empty($_GET['pagenow']) ? $_GET['pagenow'] : '';
 		return (in_array($ajax_callback_page, $this->valid_callback_pages) && !empty($_GET['widget']) && 'dashboard_primary' == $_GET['widget']);
 	}
@@ -157,7 +158,6 @@ class Updraft_Dashboard_News {
 	 */
 	public function transient_for_dashboard_news($value) {
 		if (!function_exists('wp_dashboard_primary_output')) return $value;
-		$dashboard_news_transient_name = $this->get_transient_name();
 		// Not needed first if condition, because filter hook name have already transient name. It is for better checking
 		if (!get_user_meta(get_current_user_id(), $this->slug.'_dismiss_dashboard_news', true) && !empty($value)) {
 			return $value.$this->get_dashboard_news_html();
@@ -170,7 +170,7 @@ class Updraft_Dashboard_News {
 	 *
 	 * @return String - the resulting message
 	 */
-	private function get_dashboard_news_html() {
+	protected function get_dashboard_news_html() {
 	
 		$cache_key = $this->slug.'_dashboard_news';
 		if (false !== ($output = get_transient($cache_key))) return $output;
@@ -190,7 +190,7 @@ class Updraft_Dashboard_News {
 		wp_dashboard_primary_output('dashboard_primary', $feeds);
 		$original_formatted_news = ob_get_clean();
 		$formatted_news = preg_replace('/<a(.+?)>(.+?)<\/a>/i', "<a$1>".$this->translations['item_prefix'].": $2</a>", $original_formatted_news);
-		$formatted_news = str_replace('<li>', '<li class="'.$this->slug.'_dashboard_news_item">'.'<a href="'.UpdraftPlus::get_current_clean_url().'" class="dashicons dashicons-no-alt" title="'.esc_attr($this->translations['dismiss_tooltip']).'" onClick="'.$this->slug.'_dismiss_dashboard_news(); return false;" style="float: right; box-shadow: none; margin-left: 5px;"></a>', $formatted_news);
+		$formatted_news = str_replace('<li>', '<li class="'.$this->slug.'_dashboard_news_item">'.'<a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'" class="dashicons dashicons-no-alt" title="'.esc_attr($this->translations['dismiss_tooltip']).'" onClick="'.$this->slug.'_dismiss_dashboard_news(); return false;" style="float: right; box-shadow: none; margin-left: 5px;"></a>', $formatted_news);
 		set_transient($this->slug.'_dashboard_news', $formatted_news, 43200); // 12 hours
 
 		return $formatted_news;

@@ -18,7 +18,7 @@ do_credentials_test_deletefile($testfile, $posted_settings)
 // Uses job options: Yes
 // Uses single-array storage: Yes
 
-if (!class_exists('UpdraftPlus_BackupModule')) require_once(UPDRAFTPLUS_DIR.'/methods/backup-module.php');
+if (!class_exists('UpdraftPlus_BackupModule')) updraft_try_include_file('methods/backup-module.php', 'require_once');
 
 /**
  * Note that the naming of this class is historical. There is nothing inherent which restricts it to add-ons, or requires add-ons to use it. It is just an abstraction layer that results in needing to write less code for the storage module.
@@ -33,6 +33,13 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 
 	private $chunked;
 
+	/**
+	 * Decides whether to print the test button
+	 *
+	 * @var Boolean
+	 */
+	protected $test_button;
+
 	public function __construct($method, $description, $chunked = true, $test_button = true) {
 
 		$this->method = $method;
@@ -45,8 +52,8 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 	/**
 	 * download method: takes a file name (base name), and removes it from the cloud storage
 	 *
-	 * @param  string $file specific file for being removed from cloud storage
-	 * @return array
+	 * @param  String $file specific file for being removed from cloud storage
+	 * @return Array
 	 */
 	public function download($file) {
 		return $this->download_file(false, $file);
@@ -63,15 +70,15 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 	protected function required_configuration_keys() {
 	}
 
-	public function upload_files($ret, $backup_array) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	public function upload_files($ret, $backup_array) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- Unused parameter is present because the caller from this class uses 2 arguments.
 
 		global $updraftplus;
 
 		$this->options = $this->get_options();
 
 		if (!$this->options_exist($this->options)) {
-			$updraftplus->log('No '.$this->method.' settings were found');
-			$updraftplus->log(sprintf(__('No %s settings were found', 'updraftplus'), $this->description), 'error');
+			$this->log('No settings were found');
+			$this->log(sprintf(__('No %s settings were found', 'updraftplus'), $this->description), 'error');
 			return false;
 		}
 
@@ -83,19 +90,19 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 		$updraft_dir = trailingslashit($updraftplus->backups_dir_location());
 
 		foreach ($backup_array as $file) {
-			$updraftplus->log($this->method." upload ".((!empty($this->options['ownername'])) ? '(account owner: '.$this->options['ownername'].')' : '').": attempt: $file");
+			$this->log("upload ".((!empty($this->options['ownername'])) ? '(account owner: '.$this->options['ownername'].')' : '').": attempt: $file");
 			try {
 				if ($this->do_upload($file, $updraft_dir.$file)) {
 					$updraftplus->uploaded_file($file);
 				} else {
 					$any_failures = true;
-					$updraftplus->log('ERROR: '.$this->method.': Failed to upload file: '.$file);
-					$updraftplus->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to upload %s', 'updraftplus'), $file), 'error');
+					$this->log('ERROR: Failed to upload file: '.$file);
+					$this->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to upload %s', 'updraftplus'), $file), 'error');
 				}
 			} catch (Exception $e) {
 				$any_failures = true;
-				$updraftplus->log('ERROR ('.get_class($e).'): '.$this->method.": $file: Failed to upload file: ".$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
-				$updraftplus->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to upload %s', 'updraftplus'), $file), 'error');
+				$this->log('ERROR ('.get_class($e).'): '.$file.': Failed to upload file: '.$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
+				$this->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to upload %s', 'updraftplus'), $file), 'error');
 			}
 		}
 
@@ -103,6 +110,13 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 
 	}
 
+   /**
+	* This function lists the files found in the configured storage location
+	*
+	* @param String $match a substring to require
+	*
+	* @return Array|WP_Error - each file is represented by an array with entries 'name' and (optional) 'size'
+	*/
 	public function listfiles($match = 'backup_') {
 
 		try {
@@ -120,14 +134,21 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 			return $this->do_listfiles($match);
 			
 		} catch (Exception $e) {
-			global $updraftplus;
-			$updraftplus->log('ERROR: '.$this->method.": $file: Failed to list files: ".$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
+			$this->log('ERROR: Failed to list files: '.$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
 			return new WP_Error('list_failed', $this->description.': '.__('failed to list files', 'updraftplus'));
 		}
 
 	}
 
-	public function delete_files($ret, $files, $ignore_it = false) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	/**
+	 * This function handles bootstrapping and calling the remote methods delete function
+	 *
+	 * @param Boolean $ret   - A boolean value
+	 * @param Array   $files - An array of files to delete.
+	 *
+	 * @return - On success returns true, false or WordPress Error on failure
+	 */
+	public function delete_files($ret, $files) {
 
 		global $updraftplus;
 
@@ -135,7 +156,7 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 
 		if (empty($files)) return true;
 		if (!method_exists($this, 'do_delete')) {
-			$updraftplus->log($this->method.": Delete failed: this storage method does not allow deletions");
+			$this->log("Delete failed: this storage method does not allow deletions");
 			return false;
 		}
 
@@ -145,8 +166,8 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 
 			$this->options = $this->get_options();
 			if (!$this->options_exist($this->options)) {
-				$updraftplus->log('No '.$this->method.' settings were found');
-				$updraftplus->log(sprintf(__('No %s settings were found', 'updraftplus'), $this->description), 'error');
+				$this->log('No settings were found');
+				$this->log(sprintf(__('No %s settings were found', 'updraftplus'), $this->description), 'error');
 				return false;
 			}
 
@@ -157,17 +178,30 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 
 		$ret = true;
 
-		foreach ($files as $file) {
-			$updraftplus->log($this->method.": Delete remote: $file");
+		if ($this->supports_feature('multi_delete')) {
+			$updraftplus->log("Delete remote files: ".implode(', ', $files));
 			try {
-				if (!$this->do_delete($file)) {
-					$ret = false;
-					$updraftplus->log($this->method.": Delete failed");
+				$responses = $this->do_delete($files);
+				$ret = $this->process_multi_delete_responses($files, $responses);
+			} catch (Exception $e) {
+				$updraftplus->log('ERROR:'.implode($files).': Failed to delete files: '.$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
+				$ret = false;
+			}
+			return $ret;
+		}
+
+		foreach ($files as $file) {
+			$this->log("Delete remote: $file");
+			try {
+				$ret = $this->do_delete($file);
+				
+				if (true === $ret) {
+					$this->log("$file: Delete succeeded");
 				} else {
-					$updraftplus->log($this->method.": $file: Delete succeeded");
+					$this->log("Delete failed");
 				}
 			} catch (Exception $e) {
-				$updraftplus->log('ERROR: '.$this->method.": $file: Failed to delete file: ".$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
+				$this->log('ERROR: '.$file.': Failed to delete file: '.$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
 				$ret = false;
 			}
 		}
@@ -184,15 +218,15 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 
 		if (empty($files)) return true;
 		if (!method_exists($this, 'do_download')) {
-			$updraftplus->log($this->method.": Download failed: this storage method does not allow downloading");
-			$updraftplus->log($this->description.': '.__('This storage method does not allow downloading', 'updraftplus'), 'error');
+			$this->log("Download failed: this storage method does not allow downloading");
+			$this->log(__('This storage method does not allow downloading', 'updraftplus'), 'error');
 			return false;
 		}
 
 		$this->options = $this->get_options();
 		if (!$this->options_exist($this->options)) {
-			$updraftplus->log('No '.$this->method.' settings were found');
-			$updraftplus->log(sprintf(__('No %s settings were found', 'updraftplus'), $this->description), 'error');
+			$this->log('No settings were found');
+			$this->log(sprintf(__('No %s settings were found', 'updraftplus'), $this->description), 'error');
 			return false;
 		}
 
@@ -201,8 +235,8 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 			if (is_wp_error($storage)) return $updraftplus->log_wp_error($storage, false, true);
 		} catch (Exception $e) {
 			$ret = false;
-			$updraftplus->log('ERROR: '.$this->method.": $files[0]: Failed to download file: ".$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
-			$updraftplus->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to download %s', 'updraftplus'), $files[0]), 'error');
+			$this->log('ERROR: '.$files[0].': Failed to download file: '.$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
+			$this->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to download %s', 'updraftplus'), $files[0]), 'error');
 		}
 
 		$ret = true;
@@ -215,14 +249,14 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 
 				if (false == $this->do_download($file, $fullpath, $start_offset)) {
 					$ret = false;
-					$updraftplus->log($this->method." error: failed to download: $file");
-					$updraftplus->log("$file: ".sprintf(__("%s Error", 'updraftplus'), $this->description).": ".__('Failed to download', 'updraftplus'), 'error');
+					$this->log("error: failed to download: $file");
+					$this->log("$file: ".sprintf(__("%s Error", 'updraftplus'), $this->description).": ".__('Failed to download', 'updraftplus'), 'error');
 				}
 
 			} catch (Exception $e) {
 				$ret = false;
-				$updraftplus->log('ERROR: '.$this->method.": $file: Failed to download file: ".$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
-				$updraftplus->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to download %s', 'updraftplus'), $file), 'error');
+				$this->log('ERROR: '.$file.': Failed to download file: '.$e->getMessage().' (code: '.$e->getCode().', line: '.$e->getLine().', file: '.$e->getFile().')');
+				$this->log(__('Error', 'updraftplus').': '.$this->description.': '.sprintf(__('Failed to download %s', 'updraftplus'), $file), 'error');
 			}
 		}
 
@@ -235,7 +269,6 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 	 * @return String - the template, ready for substitutions to be carried out
 	 */
 	public function get_configuration_template() {
-		$classes = $this->get_css_classes();
 		$template_str = '';
 
 		if (method_exists($this, 'do_get_configuration_template')) {
@@ -250,7 +283,7 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 	 * Modifies handerbar template options
 	 *
 	 * @param array $opts
-	 * @return array - Modified handerbar template options
+	 * @return Array - Modified handerbar template options
 	 */
 	public function transform_options_for_template($opts) {
 		if (method_exists($this, 'do_transform_options_for_template')) {
@@ -296,8 +329,6 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 	 */
 	public function credentials_test($posted_settings) {
 	
-		global $updraftplus;
-
 		$required_test_parameters = $this->get_credentials_test_required_parameters();
 
 		foreach ($required_test_parameters as $param => $descrip) {
@@ -311,7 +342,7 @@ abstract class UpdraftPlus_RemoteStorage_Addons_Base_v2 extends UpdraftPlus_Back
 		
 		if (is_wp_error($storage)) {
 			echo __("Failed", 'updraftplus').": ";
-			foreach ($storage->get_error_messages() as $key => $msg) {
+			foreach ($storage->get_error_messages() as $msg) {
 				echo "$msg\n";
 			}
 			return;

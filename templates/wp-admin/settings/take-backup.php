@@ -3,7 +3,7 @@
 	<div id="updraft-insert-admin-warning"></div>
 	<noscript>
 		<div>
-			<?php _e('JavaScript warning', 'updraftplus').': ';?><span style="color:red"><?php _e('This admin interface uses JavaScript heavily. You either need to activate it within your browser, or to use a JavaScript-capable browser.', 'updraftplus');?></span>
+			<?php _e('JavaScript warning', 'updraftplus').': ';?><span style="color:red"><?php echo __('This admin interface uses JavaScript heavily.', 'updraftplus').' '.__('You either need to activate it within your browser, or to use a JavaScript-capable browser.', 'updraftplus');?></span>
 		</div>
 	</noscript>
 	
@@ -35,13 +35,14 @@
 				</div>
 				<div id="updraft-next-database-backup-inner">
 					<?php
-					$updraftplus_admin->next_scheduled_database_backups_output();
+						$updraftplus_admin->next_scheduled_database_backups_output();
 					?>
-				</div>				
+				</div>
 			</div>
 			<div class="updraft_time_now_wrapper">
 				<?php
-				$current_time = get_date_from_gmt(gmdate('Y-m-d H:i:s'), 'D, F j, Y H:i');
+				// wp_date() is WP 5.3+, but performs translation into the site locale
+				$current_time = function_exists('wp_date') ? wp_date('D, F j, Y H:i') : get_date_from_gmt(gmdate('Y-m-d H:i:s'), 'D, F j, Y H:i');
 				?>
 				<span class="updraft_time_now_label"><?php echo __('Time now', 'updraftplus').': ';?></span>
 				<span class="updraft_time_now"><?php echo $current_time;?></span>
@@ -50,8 +51,10 @@
 		<div class="updraft_backup_btn_wrapper">
 			<button id="updraft-backupnow-button" type="button" <?php echo $backup_disabled; ?> class="button button-primary button-large button-hero" <?php if ($backup_disabled) echo 'title="'.esc_attr(__('This button is disabled because your backup directory is not writable (see the settings).', 'updraftplus')).'" ';?> onclick="updraft_backup_dialog_open(); return false;"><?php echo str_ireplace('Back Up', 'Backup', __('Backup Now', 'updraftplus'));?></button>
 			<?php
-				$link = '<p><a href="#" id="updraftplus_incremental_backup_link" onclick="updraft_backup_dialog_open(\'incremental\'); return false;" data-incremental="0">'.__('Add changed files (incremental backup) ...', ' updraftplus ') . '</a></p>';
-				echo apply_filters('updraftplus_incremental_backup_link', $link);
+				if (!$backup_disabled) {
+					$link = '<p><a href="#" id="updraftplus_incremental_backup_link" onclick="updraft_backup_dialog_open(\'incremental\'); return false;" data-incremental="0">'.__('Add changed files (incremental backup) ...', ' updraftplus ') . '</a></p>';
+					echo apply_filters('updraftplus_incremental_backup_link', $link);
+				}
 			?>
 		</div>
 		<div id="updraft_activejobs_table">
@@ -93,7 +96,7 @@
 		<table>
 			<tr>
 				<td>
-					<p class="multisite-advert-width"><?php echo __('Do you need WordPress Multisite support?', 'updraftplus').' <a href="'.apply_filters('updraftplus_com_link', "https://updraftplus.com/shop/updraftplus-premium/").'" target="_blank">'. __('Please check out UpdraftPlus Premium, or the stand-alone Multisite add-on.', 'updraftplus');?></a>.</p>
+					<p class="multisite-advert-width"><?php echo __('Do you need WordPress Multisite support?', 'updraftplus').' <a href="'.$updraftplus->get_url('premium').'" target="_blank">'. __('Please check out UpdraftPlus Premium.', 'updraftplus');?></a>.</p>
 				</td>
 			</tr>
 		</table>

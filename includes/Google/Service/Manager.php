@@ -29,7 +29,7 @@
  *
  * @author Google, Inc.
  */
-class Google_Service_Manager extends Google_Service
+class Google_Service_Manager extends UDP_Google_Service
 {
   /** View and manage your applications deployed on Google App Engine. */
   const APPENGINE_ADMIN =
@@ -59,7 +59,7 @@ class Google_Service_Manager extends Google_Service
    *
    * @param Google_Client $client
    */
-  public function __construct(Google_Client $client)
+  public function __construct(UDP_Google_Client $client)
   {
     parent::__construct($client);
     $this->servicePath = 'manager/v1beta2/projects/';
@@ -234,7 +234,7 @@ class Google_Service_Manager extends Google_Service
  *   $deployments = $managerService->deployments;
  *  </code>
  */
-class Google_Service_Manager_Deployments_Resource extends Google_Service_Resource
+class Google_Service_Manager_Deployments_Resource extends UDP_Google_Service_Resource
 {
 
   /**
@@ -314,7 +314,7 @@ class Google_Service_Manager_Deployments_Resource extends Google_Service_Resourc
  *   $templates = $managerService->templates;
  *  </code>
  */
-class Google_Service_Manager_Templates_Resource extends Google_Service_Resource
+class Google_Service_Manager_Templates_Resource extends UDP_Google_Service_Resource
 {
 
   /**

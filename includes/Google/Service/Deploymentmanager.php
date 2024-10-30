@@ -29,7 +29,7 @@
  *
  * @author Google, Inc.
  */
-class Google_Service_Deploymentmanager extends Google_Service
+class Google_Service_Deploymentmanager extends UDP_Google_Service
 {
   /** View and manage your data across Google Cloud Platform services. */
   const CLOUD_PLATFORM =
@@ -53,7 +53,7 @@ class Google_Service_Deploymentmanager extends Google_Service
    *
    * @param Google_Client $client
    */
-  public function __construct(Google_Client $client)
+  public function __construct(UDP_Google_Client $client)
   {
     parent::__construct($client);
     $this->servicePath = 'deploymentmanager/v2beta1/projects/';
@@ -317,7 +317,7 @@ class Google_Service_Deploymentmanager extends Google_Service
  *   $deployments = $deploymentmanagerService->deployments;
  *  </code>
  */
-class Google_Service_Deploymentmanager_Deployments_Resource extends Google_Service_Resource
+class Google_Service_Deploymentmanager_Deployments_Resource extends UDP_Google_Service_Resource
 {
 
   /**
@@ -396,7 +396,7 @@ class Google_Service_Deploymentmanager_Deployments_Resource extends Google_Servi
  *   $manifests = $deploymentmanagerService->manifests;
  *  </code>
  */
-class Google_Service_Deploymentmanager_Manifests_Resource extends Google_Service_Resource
+class Google_Service_Deploymentmanager_Manifests_Resource extends UDP_Google_Service_Resource
 {
 
   /**
@@ -445,7 +445,7 @@ class Google_Service_Deploymentmanager_Manifests_Resource extends Google_Service
  *   $operations = $deploymentmanagerService->operations;
  *  </code>
  */
-class Google_Service_Deploymentmanager_Operations_Resource extends Google_Service_Resource
+class Google_Service_Deploymentmanager_Operations_Resource extends UDP_Google_Service_Resource
 {
 
   /**
@@ -492,7 +492,7 @@ class Google_Service_Deploymentmanager_Operations_Resource extends Google_Servic
  *   $resources = $deploymentmanagerService->resources;
  *  </code>
  */
-class Google_Service_Deploymentmanager_Resources_Resource extends Google_Service_Resource
+class Google_Service_Deploymentmanager_Resources_Resource extends UDP_Google_Service_Resource
 {
 
   /**
@@ -541,7 +541,7 @@ class Google_Service_Deploymentmanager_Resources_Resource extends Google_Service
  *   $types = $deploymentmanagerService->types;
  *  </code>
  */
-class Google_Service_Deploymentmanager_Types_Resource extends Google_Service_Resource
+class Google_Service_Deploymentmanager_Types_Resource extends UDP_Google_Service_Resource
 {
 
   /**

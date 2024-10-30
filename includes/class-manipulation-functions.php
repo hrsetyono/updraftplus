@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) die('No direct access.');
 class UpdraftPlus_Manipulation_Functions {
 
 	/**
-	 * Replace last occurence
+	 * Replace last occurrence
 	 *
 	 * @param  String  $search         The value being searched for, otherwise known as the needle
 	 * @param  String  $replace        The replacement value that replaces found search values
@@ -209,7 +209,7 @@ class UpdraftPlus_Manipulation_Functions {
 	 *
 	 * @param array   $str_arr1                  array of strings
 	 * @param array   $str_arr2                  array of strings
-	 * @param boolean $match_until_first_numeric only match until first numeric occurence
+	 * @param boolean $match_until_first_numeric only match until first numeric occurrence
 	 * @return string matching str which will be best for replacement
 	 */
 	public static function get_matching_str_from_array_elems($str_arr1, $str_arr2, $match_until_first_numeric = true) {
@@ -220,7 +220,7 @@ class UpdraftPlus_Manipulation_Functions {
 				$str1_str_length = strlen($str1);
 				$temp_str1_chars = str_split($str1);
 				$temp_partial_str = '';
-				// The flag is for whether non-numeric character passed after numeric character occurence in str1. For ex. str1 is utf8mb4, the flag wil be true when parsing m after utf8.
+				// The flag is for whether non-numeric character passed after numeric character occurrence in str1. For ex. str1 is utf8mb4, the flag wil be true when parsing m after utf8.
 				$numeric_char_pass_flag = false;
 				$char_position_in_str1 = 0;
 				while ($char_position_in_str1 < $str1_str_length) {
@@ -385,7 +385,7 @@ class UpdraftPlus_Manipulation_Functions {
 	public static function max_time_passed($time_passed, $upto, $first_run) {
 		$max_time = 0;
 		$timings_string = "";
-		$run_times_known=0;
+		$run_times_known = 0;
 		for ($i = $first_run; $i <= $upto; $i++) {
 			$timings_string .= "$i:";
 			if (isset($time_passed[$i])) {
@@ -425,5 +425,93 @@ class UpdraftPlus_Manipulation_Functions {
 			$random_string .= $characters[rand(0, $characters_length - 1)];
 		}
 		return $random_string;
+	}
+
+	/**
+	 * Returns an anonymized IPv4 or IPv6 address.
+	 *
+	 * @param string $ip_addr The IPv4 or IPv6 address to be anonymized.
+	 * @return string  The anonymized IP address.
+	 */
+	public static function wp_privacy_anonymize_ip($ip_addr) {
+		if (empty($ip_addr)) {
+			return '0.0.0.0';
+		}
+	
+		$ip_prefix = '';
+		$is_ipv6   = substr_count($ip_addr, ':') > 1;
+		$is_ipv4   = (3 === substr_count($ip_addr, '.'));
+	
+		if ($is_ipv6 && $is_ipv4) {
+			$ip_prefix = '::ffff:';
+			$ip_addr   = preg_replace('/^\[?[0-9a-f:]*:/i', '', $ip_addr);
+			$ip_addr   = str_replace(']', '', $ip_addr);
+			$is_ipv6   = false;
+		}
+	
+		if ($is_ipv6) {
+			$percent       = strpos($ip_addr, '%');
+			$netmask       = 'ffff:ffff:ffff:ffff:0000:0000:0000:0000';
+	
+			if (preg_match('#\[(.*)\]#', $ip_addr, $matches)) $ip_addr = $matches[1];
+	
+			if (false !== $percent) {
+				$ip_addr = substr($ip_addr, 0, $percent);
+			}
+	
+			if (preg_match('/[^0-9a-f:]/i', $ip_addr)) {
+				return '::';
+			}
+	
+			if (function_exists('inet_pton') && function_exists('inet_ntop')) {
+				$ip_addr = inet_ntop(inet_pton($ip_addr) & inet_pton($netmask));
+				if (false === $ip_addr) {
+					return '::';
+				}
+			}
+		} elseif ($is_ipv4) {
+			$last_octet_position = strrpos($ip_addr, '.');
+			$ip_addr             = substr($ip_addr, 0, $last_octet_position) . '.0';
+		} else {
+			return '0.0.0.0';
+		}
+	
+		return $ip_prefix . $ip_addr;
+	}
+
+	/**
+	 * Returns uniform "anonymous" data by type.
+	 *
+	 * @param string $type The type of data to be anonymized.
+	 * @param string $data Optional The data to be anonymized.
+	 * @return string The anonymous data for the requested type.
+	 */
+	public static function anonymize_data($type, $data = '') {
+		switch ($type) {
+			case 'email':
+				$anonymous = 'invalid@example.com';
+				break;
+			case 'url':
+				$anonymous = 'https://invalid.example.com';
+				break;
+			case 'ip':
+				$anonymous = self::wp_privacy_anonymize_ip($data);
+				break;
+			case 'date':
+				$anonymous = '0000-00-00 00:00:00';
+				break;
+			case 'text':
+				/* translators: Deleted text. */
+				$anonymous = __('[deleted]', 'updraftplus');
+				break;
+			case 'longtext':
+				/* translators: Deleted long text. */
+				$anonymous = __('This content was deleted in order to anonymize it.', 'updraftplus');
+				break;
+			default:
+				$anonymous = '';
+				break;
+		}
+		return $anonymous;
 	}
 }

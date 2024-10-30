@@ -30,7 +30,7 @@
  *
  * @author Google, Inc.
  */
-class Google_Service_Cloudsearch extends Google_Service
+class Google_Service_Cloudsearch extends UDP_Google_Service
 {
 
 
@@ -42,7 +42,7 @@ class Google_Service_Cloudsearch extends Google_Service
    *
    * @param Google_Client $client
    */
-  public function __construct(Google_Client $client)
+  public function __construct(UDP_Google_Client $client)
   {
     parent::__construct($client);
     $this->servicePath = '';

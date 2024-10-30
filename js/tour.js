@@ -1,12 +1,12 @@
 (function ($) {
 
-	$('document').ready(function() {
+	$(function() {
 		/*
 			Plugins page
 			splash screen on activation
 		*/
 
-		$('.updraftplus-welcome .close').click(function(e) {
+		$('.updraftplus-welcome .close').on('click', function(e) {
 			e.preventDefault();
 			$(this).closest('.updraftplus-welcome').remove();
 		});
@@ -582,7 +582,7 @@
 			// start tour
 			main_tour.start();
 
-			// go back to fisrt tab
+			// go back to first tab
 			if (updraftplus_tour_i18n.show_tab_on_load) {
 				$(updraftplus_tour_i18n.show_tab_on_load).trigger('click');
 			} else {

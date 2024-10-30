@@ -2,7 +2,7 @@
 
 if (!defined('UPDRAFTPLUS_DIR')) die('No direct access allowed.');
 
-if (!class_exists('UpdraftPlus_BackupModule')) require_once(UPDRAFTPLUS_DIR.'/methods/backup-module.php');
+if (!class_exists('UpdraftPlus_BackupModule')) updraft_try_include_file('methods/backup-module.php', 'require_once');
 
 class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 
@@ -57,7 +57,7 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 			return false;
 		}
 
-		foreach ($backup_array as $key => $file) {
+		foreach ($backup_array as $file) {
 		
 			$file_key = 'status_'.md5($file);
 			$file_status = $this->jobdata_get($file_key, null, 'openstack_'.$file_key);
@@ -77,8 +77,8 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 							throw new Exception('uploadObject failed: fopen failed');
 						}
 					} catch (Exception $e) {
-						$this->log("$logname regular upload: failed ($file) (".$e->getMessage().")");
-						$this->log("$file: ".sprintf(__('%s Error: Failed to upload', 'updraftplus'), $logname), 'error');
+						$this->log("regular upload: failed ($file) (".$e->getMessage().")");
+						$this->log("$file: ".sprintf(__('Error: Failed to upload', 'updraftplus')), 'error');
 					}
 				}
 			} catch (Exception $e) {
@@ -113,7 +113,6 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 	public function listfiles($match = 'backup_') {
 		$opts = $this->get_options();
 		$container = $opts['path'];
-		$path = $container;
 
 		if (empty($opts['user']) || (empty($opts['apikey']) && empty($opts['password']))) return new WP_Error('no_settings', __('No settings were found', 'updraftplus'));
 
@@ -331,8 +330,16 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 		
 		return true;
 	}
-
-	public function delete($files, $data = false, $sizeinfo = array()) {// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
+	
+	/**
+	 * Delete a single file from the service using OpenStack API
+	 *
+	 * @param Array|String $files    - array of file names to delete
+	 * @param Array        $data     - service object and container details
+	 * @param Array        $sizeinfo - unused here
+	 * @return Boolean|String - either a boolean true or an error code string
+	 */
+	public function delete($files, $data = false, $sizeinfo = array()) {// phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable -- $sizeinfo unused
 
 		global $updraftplus;
 		if (is_string($files)) $files = array($files);
@@ -340,21 +347,19 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 		if (is_array($data)) {
 			$container_object = $data['object'];
 			$container = $data['container'];
-			$path = $data['orig_path'];
 		} else {
 			$opts = $this->get_options();
 			$container = $opts['path'];
-			$path = $container;
 			try {
 				$storage = $this->get_openstack_service($opts, UpdraftPlus_Options::get_updraft_option('updraft_ssl_useservercerts'), UpdraftPlus_Options::get_updraft_option('updraft_ssl_disableverify'));
 			} catch (AuthenticationError $e) {
 				$updraftplus->log($this->desc.' authentication failed ('.$e->getMessage().')');
 				$updraftplus->log(sprintf(__('%s authentication failed', 'updraftplus'), $this->desc).' ('.$e->getMessage().')', 'error');
-				return false;
+				return 'authentication_fail';
 			} catch (Exception $e) {
 				$updraftplus->log($this->desc.' error - failed to access the container ('.$e->getMessage().')');
 				$updraftplus->log(sprintf(__('%s error - failed to access the container', 'updraftplus'), $this->desc).' ('.$e->getMessage().')', 'error');
-				return false;
+				return 'service_unavailable';
 			}
 			// Get the container
 			try {
@@ -362,7 +367,7 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 			} catch (Exception $e) {
 				$updraftplus->log('Could not access '.$this->desc.' container ('.get_class($e).', '.$e->getMessage().')');
 				$updraftplus->log(sprintf(__('Could not access %s container', 'updraftplus'), $this->desc).' ('.get_class($e).', '.$e->getMessage().')', 'error');
-				return false;
+				return 'container_access_error';
 			}
 
 		}
@@ -398,7 +403,7 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 				$updraftplus->log($this->desc.': Deleted: '.$file);
 			} catch (Exception $e) {
 				$updraftplus->log($this->desc.' delete failed: '.$e->getMessage());
-				$ret = false;
+				$ret = 'file_delete_error';
 			}
 		}
 		return $ret;
@@ -544,6 +549,7 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 
 	/**
 	 * Get the pre configuration template
+	 * DEVELOPER NOTES: Please don't use/call this method anymore as it is currently used by OpenStack and Cloudfiles(Rackspace) storage, and it's consider to be removed in future versions. Once OpenStack and Cloudfiles templates are CSP-compliant, this should be removed and should be placed in the class child instead of the base class.
 	 *
 	 * @return String - the template
 	 */
@@ -568,7 +574,7 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 			// Check requirements.
 			global $updraftplus_admin;
 			if (!function_exists('mb_substr')) {
-				$updraftplus_admin->show_double_warning('<strong>'.__('Warning', 'updraftplus').':</strong> '.sprintf(__('Your web server\'s PHP installation does not included a required module (%s). Please contact your web hosting provider\'s support.', 'updraftplus'), 'mbstring').' '.sprintf(__("UpdraftPlus's %s module <strong>requires</strong> %s. Please do not file any support requests; there is no alternative.", 'updraftplus'), $this->desc, 'mbstring'), $this->method);
+				$updraftplus_admin->show_double_warning('<strong>'.__('Warning', 'updraftplus').':</strong> '.sprintf(__('Your web server\'s PHP installation does not included a required module (%s).', 'updraftplus'), 'mbstring').' '.__('Please contact your web hosting provider\'s support.', 'updraftplus').' '.sprintf(__("UpdraftPlus's %s module <strong>requires</strong> %s.", 'updraftplus'), $this->desc, 'mbstring').' '.__('Please do not file any support requests; there is no alternative.', 'updraftplus'), $this->method);
 			}
 			$updraftplus_admin->curl_check($this->long_desc, false, $this->method);
 			echo '<br>';
@@ -582,12 +588,12 @@ class UpdraftPlus_BackupModule_openstack_base extends UpdraftPlus_BackupModule {
 
 	/**
 	 * Get the configuration template
+	 * DEVELOPER NOTES: Please don't use/call this method anymore as it is currently used by OpenStack and Cloudfiles(Rackspace) storage, and it's consider to be removed in future versions. Once OpenStack and Cloudfiles templates are CSP-compliant, this should be removed and should be placed in the class child instead of the base class.
 	 *
 	 * @return String - the template, ready for substitutions to be carried out
 	 */
 	public function get_configuration_template() {
 		ob_start();
-		$classes = $this->get_css_classes();
 		$template_str = ob_get_clean();
 		$template_str .= $this->get_configuration_middlesection_template();
 		$template_str .= $this->get_test_button_html($this->desc);

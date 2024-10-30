@@ -11,13 +11,13 @@ if (!defined('UPDRAFTPLUS_DIR')) die('No direct access allowed');
 		<div class="updraftcentral_cloud_wizard">
 			<h2>UpdraftCentral - <?php _e('Backup, update and manage all your WordPress sites from one dashboard', 'updraftplus');?></h2>
 			<p>
-				<?php _e("If you have a few sites, it'll save hours. It's free to use or try up to 5 sites.", 'updraftplus');?> <a href="https://updraftplus.com/updraftcentral" target="_blank"><?php _e('Follow this link for more information', 'updraftplus'); ?></a>.
+				<?php echo __('If you have a few sites, it\'ll save hours.', 'updraftplus').' '.__('It\'s free to use or try up to 5 sites.', 'updraftplus');?> <a href="https://updraftplus.com/updraftcentral" target="_blank"><?php _e('Follow this link for more information', 'updraftplus'); ?></a>.
 			</p>
 			<p>
 				<button id="btn_cloud_connect" class="btn btn-primary button-primary"><?php _e('Connect this site to UpdraftCentral Cloud', 'updraftplus');?></button>
 			</p>
 			<p>
-				<a href="https://wordpress.org/plugins/updraftcentral/" target="_blank"><?php _e('Or if you prefer to self-host, then you can get the self-hosted version here.', 'updraftplus');?></a> <a id="self_hosted_connect" href="<?php echo UpdraftPlus::get_current_clean_url();?>"><?php _e('Go here to connect it.', 'updraftplus');?></a>
+				<a href="https://wordpress.org/plugins/updraftcentral/" target="_blank"><?php _e('Or if you prefer to self-host, then you can get the self-hosted version here.', 'updraftplus');?></a> <a id="self_hosted_connect" href="<?php echo esc_url(UpdraftPlus::get_current_clean_url()); ?>"><?php _e('Go here to connect it.', 'updraftplus');?></a>
 			</p>
 		</div>
 		<div class="updraftcentral_cloud_clear"></div>

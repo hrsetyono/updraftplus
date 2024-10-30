@@ -3,9 +3,10 @@
 /*
 Plugin Name: UpdraftPlus - Backup/Restore
 Plugin URI: https://updraftplus.com
+Update URI: https://updraftplus.com/
 Description: Backup and restore: take backups locally, or backup to Amazon S3, Dropbox, Google Drive, Rackspace, (S)FTP, WebDAV & email, on automatic schedules.
-Author: UpdraftPlus.Com, DavidAnderson
-Version: 2.16.15
+Author: TeamUpdraft, DavidAnderson
+Version: 2.24.6.0
 Donate link: https://david.dw-perspective.org.uk/donate
 License: GPLv3 or later
 Text Domain: updraftplus
@@ -15,7 +16,7 @@ Author URI: https://updraftplus.com
 // @codingStandardsIgnoreEnd
 
 /*
-Portions copyright 2011-19 David Anderson
+Portions copyright 2011-24 David Anderson
 Portions copyright 2010 Paul Kehrer
 Other portions copyright as indicated by authors in the relevant files
 
@@ -36,16 +37,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 if (!defined('ABSPATH')) die('No direct access allowed');
 
-if ((isset($updraftplus) && is_object($updraftplus) && is_a($updraftplus, 'UpdraftPlus')) || function_exists('updraftplus_modify_cron_schedules')) return;
+if ((isset($updraftplus) && is_object($updraftplus) && is_a($updraftplus, 'UpdraftPlus')) || function_exists('updraftplus_modify_cron_schedules')) return; // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UndefinedVariable -- There is a possibility that the $updraftplus variable is already defined from previous process.
 
 define('UPDRAFTPLUS_DIR', dirname(__FILE__));
 define('UPDRAFTPLUS_URL', plugins_url('', __FILE__));
+define('UPDRAFTPLUS_PLUGIN_SLUG', plugin_basename(__FILE__));
 define('UPDRAFT_DEFAULT_OTHERS_EXCLUDE', 'upgrade,cache,updraft,backup*,*backups,mysql.sql,debug.log');
 define('UPDRAFT_DEFAULT_UPLOADS_EXCLUDE', 'backup*,*backups,backwpup*,wp-clone,snapshots');
 
 // The following can go in your wp-config.php
 // Tables whose data can be skipped without significant loss, if (and only if) the attempt to back them up fails (e.g. bwps_log, from WordPress Better Security, is log data; but individual entries can be huge and cause out-of-memory fatal errors on low-resource environments). Comma-separate the table names (without the WordPress table prefix).
-if (!defined('UPDRAFTPLUS_DATA_OPTIONAL_TABLES')) define('UPDRAFTPLUS_DATA_OPTIONAL_TABLES', 'bwps_log,statpress,slim_stats,redirection_logs,Counterize,Counterize_Referers,Counterize_UserAgents,wbz404_logs,wbz404_redirects,tts_trafficstats,tts_referrer_stats,wponlinebackup_generations,svisitor_stat,simple_feed_stats,itsec_log,relevanssi_log,blc_instances,wysija_email_user_stat,woocommerce_sessions,et_bloom_stats,redirection_404,lbakut_activity_log,stream_meta');
+if (!defined('UPDRAFTPLUS_DATA_OPTIONAL_TABLES')) define('UPDRAFTPLUS_DATA_OPTIONAL_TABLES', 'bwps_log,statpress,slim_stats,redirection_logs,Counterize,Counterize_Referers,Counterize_UserAgents,wbz404_logs,wbz404_redirects,tts_trafficstats,tts_referrer_stats,wponlinebackup_generations,svisitor_stat,simple_feed_stats,itsec_log,relevanssi_log,blc_instances,wysija_email_user_stat,woocommerce_sessions,et_bloom_stats,redirection_404,lbakut_activity_log,stream_meta,wfFileMods,wffilemods,wfBlockedIPLog,wfblockediplog,page_visit_history,strack_st');
 if (!defined('UPDRAFTPLUS_ZIP_EXECUTABLE')) define('UPDRAFTPLUS_ZIP_EXECUTABLE', "/usr/bin/zip,/bin/zip,/usr/local/bin/zip,/usr/sfw/bin/zip,/usr/xdg4/bin/zip,/opt/bin/zip");
 if (!defined('UPDRAFTPLUS_MYSQLDUMP_EXECUTABLE')) define('UPDRAFTPLUS_MYSQLDUMP_EXECUTABLE', updraftplus_build_mysqldump_list());
 // If any individual file size is greater than this, then a warning is given
@@ -57,7 +59,7 @@ if (!defined('UPDRAFTPLUS_WARN_DB_ROWS')) define('UPDRAFTPLUS_WARN_DB_ROWS', 150
 if (!defined('UPDRAFTPLUS_SPLIT_MIN')) define('UPDRAFTPLUS_SPLIT_MIN', 25);
 
 // The maximum number of files to batch at one time when writing to the backup archive. You'd only be likely to want to raise (not lower) this.
-if (!defined('UPDRAFTPLUS_MAXBATCHFILES')) define('UPDRAFTPLUS_MAXBATCHFILES', 500);
+if (!defined('UPDRAFTPLUS_MAXBATCHFILES')) define('UPDRAFTPLUS_MAXBATCHFILES', 1000);
 
 // If any individual email attachment is greater than this, then a warning is given (and then removed if the email actually succeeds)
 if (!defined('UPDRAFTPLUS_WARN_EMAIL_SIZE')) define('UPDRAFTPLUS_WARN_EMAIL_SIZE', 20*1048576);
@@ -82,32 +84,99 @@ if (!defined('UPDRAFTPLUS_BINZIP_OPTS')) {
 	define('UPDRAFTPLUS_BINZIP_OPTS', $zip_binzip_opts);
 }
 
+/**
+ * A wrapper for (require|include)(_once)? that will first check for existence, and direct the user what to do (since the traditional PHP error messages aren't clear enough for all users)
+ *
+ * @param String $path   the file path to check
+ * @param String $method the method to load the file
+ */
+function updraft_try_include_file($path, $method = 'include') {
+
+	$file_to_include = UPDRAFTPLUS_DIR.'/'.$path;
+
+	if (!file_exists($file_to_include)) {
+		trigger_error(sprintf(__('The expected file %s is missing from your UpdraftPlus installation.', 'updraftplus').' '.__('Most likely, WordPress did not correctly unpack the plugin when installing it.', 'updraftplus').' '.__('You should de-install and then re-install the plugin (your settings and data will be retained).'), $file_to_include), E_USER_WARNING);
+	}
+
+	if ('include' === $method) {
+		include($file_to_include);
+	} elseif ('include_once' === $method) {
+		include_once($file_to_include);
+	} elseif ('require' === $method) {
+		require($file_to_include); // phpcs:ignore PEAR.Files.IncludingFile.UseInclude -- File required intentionally.
+	} else {
+		require_once($file_to_include);
+	}
+	
+}
+
 // Load add-ons and files that may or may not be present, depending on where the plugin was distributed
-if (is_file(UPDRAFTPLUS_DIR.'/autoload.php')) require_once(UPDRAFTPLUS_DIR.'/autoload.php');
+if (is_file(UPDRAFTPLUS_DIR.'/autoload.php')) updraft_try_include_file('autoload.php', 'require_once');
+
+/**
+ * Get cron schedules list of our own
+ * DEVELOPER NOTES: Intervals should be presented in chronological order of time because we also use this list for ordering purpose especially when merging WP default intervals to ours
+ *
+ * @return Boolean The list of our own schedules
+ */
+function updraftplus_list_cron_schedules() {
+	$every_particular_hour_label = __('Every %s hours', 'updraftplus');
+	return array(
+		'everyhour' => array(
+			'interval' => 3600,
+			'display' => apply_filters('updraftplus_cron_schedule_description', __('Every hour', 'updraftplus'), 'everyhour'),
+		),
+		'every2hours' => array(
+			'interval' => 7200,
+			'display' => apply_filters('updraftplus_cron_schedule_description', sprintf($every_particular_hour_label, '2'), 'every2hours'),
+		),
+		'every4hours' => array(
+			'interval' => 14400,
+			'display' => apply_filters('updraftplus_cron_schedule_description', sprintf($every_particular_hour_label, '4'), 'every4hours'),
+		),
+		'every8hours' => array(
+			'interval' => 28800,
+			'display' => apply_filters('updraftplus_cron_schedule_description', sprintf($every_particular_hour_label, '8'), 'every8hours'),
+		),
+		'twicedaily' => array(
+			'interval' => 43200,
+			'display'  => apply_filters('updraftplus_cron_schedule_description', sprintf($every_particular_hour_label, '12'), 'twicedaily'),
+		),
+		'daily' => array(
+			'interval' => 86400,
+			'display'  => apply_filters('updraftplus_cron_schedule_description', __('Daily'), 'daily'),
+		),
+		'weekly' => array(
+			'interval' => 604800,
+			'display' => apply_filters('updraftplus_cron_schedule_description', __('Weekly'), 'weekly'),
+		),
+		'fortnightly' => array(
+			'interval' => 1209600,
+			'display' => apply_filters('updraftplus_cron_schedule_description', __('Fortnightly'), 'fortnightly'),
+		),
+		'monthly' => array(
+			'interval' => 2592000,
+			'display' => apply_filters('updraftplus_cron_schedule_description', __('Monthly'), 'monthly'),
+		),
+	);
+}
 
 if (!function_exists('updraftplus_modify_cron_schedules')) :
 /**
  * wp-cron only has hourly, daily and twicedaily, so we need to add some of our own
  *
  * @param  array $schedules an array of schedule types
- * @return array
+ * @return array cron schedules which contains schedules of our own
  */
 function updraftplus_modify_cron_schedules($schedules) {
-		$schedules['weekly'] = array('interval' => 604800, 'display' => 'Once Weekly');
-		$schedules['fortnightly'] = array('interval' => 1209600, 'display' => 'Once Each Fortnight');
-		$schedules['monthly'] = array('interval' => 2592000, 'display' => 'Once Monthly');
-		$schedules['everyhour'] = array('interval' => 3600, 'display' => __('Every hour', 'updraftplus'));
-		$schedules['every2hours'] = array('interval' => 7200, 'display' => sprintf(__('Every %s hours', 'updraftplus'), 2));
-		$schedules['every4hours'] = array('interval' => 14400, 'display' => sprintf(__('Every %s hours', 'updraftplus'), 4));
-		$schedules['every8hours'] = array('interval' => 28800, 'display' => sprintf(__('Every %s hours', 'updraftplus'), 8));
-		return $schedules;
+		return array_merge($schedules, updraftplus_list_cron_schedules());
 }
 endif;
 // http://codex.wordpress.org/Plugin_API/Filter_Reference/cron_schedules. Raised priority because some plugins wrongly over-write all prior schedule changes (including BackupBuddy!)
 add_filter('cron_schedules', 'updraftplus_modify_cron_schedules', 30);
 
 // The checks here before loading are for performance only - unless one of those conditions is met, then none of the hooks will ever be used
-if (!is_admin() && (!defined('DOING_CRON') || !DOING_CRON) && (!defined('XMLRPC_REQUEST') || !XMLRPC_REQUEST) && empty($_SERVER['SHELL']) && empty($_SERVER['USER']) && empty($_POST['udrpc_message']) && empty($_GET['udcentral_action']) && (defined('UPDRAFTPLUS_THIS_IS_CLONE') && "1" != UPDRAFTPLUS_THIS_IS_CLONE) && empty($_GET['uc_auto_login']) && (empty($_SERVER['REQUEST_METHOD']) || 'OPTIONS' != $_SERVER['REQUEST_METHOD']) && (!defined('WP_CLI') || !WP_CLI)) {
+if (!is_admin() && (!defined('DOING_CRON') || !DOING_CRON) && (!defined('XMLRPC_REQUEST') || !XMLRPC_REQUEST) && empty($_SERVER['SHELL']) && empty($_POST['udrpc_message']) && empty($_GET['udcentral_action']) && (defined('UPDRAFTPLUS_THIS_IS_CLONE') && '1' != UPDRAFTPLUS_THIS_IS_CLONE) && empty($_GET['uc_auto_login']) && (empty($_SERVER['REQUEST_METHOD']) || 'OPTIONS' != $_SERVER['REQUEST_METHOD']) && (!defined('WP_CLI') || !WP_CLI)) {
 	// There is no good way to work out if the cron event is likely to be called under the ALTERNATE_WP_CRON system, other than re-running the calculation
 	// If ALTERNATE_WP_CRON is not active (and a few other things), then we are done
 	if (!defined('ALTERNATE_WP_CRON') || !ALTERNATE_WP_CRON || !empty($_POST) || defined('DOING_AJAX') || isset($_GET['doing_wp_cron'])) return;
@@ -139,27 +208,28 @@ if (is_dir(UPDRAFTPLUS_DIR.'/addons') && $dir_handle = opendir(UPDRAFTPLUS_DIR.'
 			$phpinclude = preg_match("/IncludePHP: (\S+)/", $header, $matches) ? $matches[1] : false;
 			if (false === $phprequires || version_compare(PHP_VERSION, $phprequires, '>=')) {
 				$updraftplus_have_addons++;
-				if ($phpinclude) include_once(UPDRAFTPLUS_DIR.'/'.$phpinclude);
-				include_once(UPDRAFTPLUS_DIR.'/addons/'.$e);
+				if ($phpinclude) updraft_try_include_file(''.$phpinclude, 'include_once');
+				updraft_try_include_file('addons/'.$e, 'include_once');
 			}
+			unset($header);
 		}
 	}
-	@closedir($dir_handle);
+	@closedir($dir_handle);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 }
 
-if (is_file(UPDRAFTPLUS_DIR.'/udaddons/updraftplus-addons.php')) require_once(UPDRAFTPLUS_DIR.'/udaddons/updraftplus-addons.php');
+if (is_file(UPDRAFTPLUS_DIR.'/udaddons/updraftplus-addons.php')) updraft_try_include_file('udaddons/updraftplus-addons.php', 'require_once');
 
 if (!file_exists(UPDRAFTPLUS_DIR.'/class-updraftplus.php') || !file_exists(UPDRAFTPLUS_DIR.'/options.php')) {
 	/**
 	 * Warn if they've not got the whole plugin - can happen if WP crashes (e.g. out of disk space) when upgrading the plugin
 	 */
 	function updraftplus_incomplete_install_warning() {
-		echo '<div class="updraftmessage error"><p><strong>'.__('Error', 'updraftplus').':</strong> '.__("You do not have UpdraftPlus completely installed - please de-install and install it again. Most likely, WordPress malfunctioned when copying the plugin files.", 'updraftplus').' <a href="https://updraftplus.com/faqs/wordpress-crashed-when-updating-updraftplus-what-can-i-do/">'.__('Go here for more information.', 'updraftplus').'</a></p></div>';
+		echo '<div class="updraftmessage error"><p><strong>'.__('Error', 'updraftplus').':</strong> '.__('You do not have UpdraftPlus completely installed - please de-install and install it again.', 'updraftplus').' '.__('Most likely, WordPress malfunctioned when copying the plugin files.', 'updraftplus').' <a href="https://updraftplus.com/faqs/wordpress-crashed-when-updating-updraftplus-what-can-i-do/">'.__('Go here for more information.', 'updraftplus').'</a></p></div>';
 	}
 	add_action('all_admin_notices', 'updraftplus_incomplete_install_warning');
 } else {
 
-	include_once(UPDRAFTPLUS_DIR.'/class-updraftplus.php');
+	updraft_try_include_file('class-updraftplus.php', 'include_once');
 	$updraftplus = new UpdraftPlus();
 	$GLOBALS['updraftplus'] = $updraftplus;
 	$updraftplus->have_addons = $updraftplus_have_addons;
@@ -170,11 +240,13 @@ if (!file_exists(UPDRAFTPLUS_DIR.'/class-updraftplus.php') || !file_exists(UPDRA
 		if (!$updraftplus->memory_check($updraftplus->memory_check_current(WP_MAX_MEMORY_LIMIT))) {
 			$new = absint($updraftplus->memory_check_current(WP_MAX_MEMORY_LIMIT));
 			if ($new>32 && $new<100000) {
-				@ini_set('memory_limit', $new.'M');
+				@ini_set('memory_limit', $new.'M');// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 			}
 		}
 	}
 
+	// Blocking updates during restore; placed here so that it still runs e.g. under WP-CLI
+	$updraftplus->block_updates_during_restore_progress();
 }
 
 // Ubuntu bug - https://bugs.launchpad.net/ubuntu/+source/php5/+bug/1315888
@@ -185,7 +257,7 @@ if (!function_exists('gzopen') && function_exists('gzopen64')) {
 }
 
 /**
- * For finding mysqldump. Added to include Windows locations
+ * For finding mysqldump. Added to include Windows locations.
  */
 function updraftplus_build_mysqldump_list() {
 	if ('win' == strtolower(substr(PHP_OS, 0, 3)) && function_exists('glob')) {
@@ -213,4 +285,4 @@ function updraftplus_build_mysqldump_list() {
 }
 
 // Do this even if the missing files detection above fired, as the "missing files" detection above has a greater chance of showing the user useful info
-if (!class_exists('UpdraftPlus_Options')) require_once(UPDRAFTPLUS_DIR.'/options.php');
+if (!class_exists('UpdraftPlus_Options')) updraft_try_include_file('options.php', 'require_once');

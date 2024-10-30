@@ -33,8 +33,8 @@ class UpdraftCentral_Analytics_Commands extends UpdraftCentral_Commands {
 	 * Constructor
 	 */
 	public function __construct() {
-		$this->auth_endpoint = defined('UPDRAFTPLUS_GOOGLECLOUD_CALLBACK_URL') ? UPDRAFTPLUS_GOOGLECLOUD_CALLBACK_URL : 'https://auth.updraftplus.com/auth/googleanalytics';
-		$this->client_id = defined('UPDRAFTPLUS_GOOGLECLOUD_CLIENT_ID') ? UPDRAFTPLUS_GOOGLECLOUD_CLIENT_ID : '306245874349-6s896c3tjpra26ns3dpplhqcl6rv6qlb.apps.googleusercontent.com';
+		$this->auth_endpoint = defined('UPDRAFTPLUS_GOOGLE_ANALYTICS_CALLBACK_URL') ? UPDRAFTPLUS_GOOGLE_ANALYTICS_CALLBACK_URL : 'https://auth.updraftplus.com/auth/googleanalytics';
+		$this->client_id = defined('UPDRAFTPLUS_GOOGLE_ANALYTICS_CLIENT_ID') ? UPDRAFTPLUS_GOOGLE_ANALYTICS_CLIENT_ID : '306245874349-6s896c3tjpra26ns3dpplhqcl6rv6qlb.apps.googleusercontent.com';
 
 		// Set transient expiration - default for 24 hours
 		$this->expiration = 86400;
@@ -119,7 +119,7 @@ class UpdraftCentral_Analytics_Commands extends UpdraftCentral_Commands {
 		$result['tracking_id'] = $output['tracking_id'];
 		
 		// If it was not found, then now try the footer
-		if (empty($tracking_id)) {
+		if (empty($result['tracking_id'])) {
 			// Retrieve footer content
 			ob_start();
 			do_action('wp_footer');
@@ -129,8 +129,8 @@ class UpdraftCentral_Analytics_Commands extends UpdraftCentral_Commands {
 			$result['tracking_id'] = $output['tracking_id'];
 		}
 
-		if (!empty($tracking_id)) {
-			set_transient($this->tracking_id_key, $tracking_id, $this->expiration);
+		if (!empty($result['tracking_id'])) {
+			set_transient($this->tracking_id_key, $result['tracking_id'], $this->expiration);
 		}
 
 		return $result;

@@ -118,7 +118,7 @@ class UpdraftPlus_Semaphore {
 	 * @return Updraft_Semaphore
 	 */
 	public function increment(array $filters = array()) {
-		global $wpdb;
+		global $wpdb, $updraftplus;
 
 		if (count($filters)) {
 			// Loop through all of the filters and increment the semaphore
@@ -207,6 +207,14 @@ class UpdraftPlus_Semaphore {
 
 		if ('1' == $affected) {
 			$updraftplus->log('Semaphore ('.$this->lock_name.', '.$wpdb->options.') was stuck, set lock time to '.$current_time);
+			$this->lock_broke = true;
+			return true;
+		}
+
+		// Check if lock is greater that 24 hours
+		$last_lock_time = strtotime(UpdraftPlus_Options::get_updraft_option('updraftplus_last_lock_time_'.$this->lock_name, $current_time));
+		$next_day = strtotime($current_time.' +1 day');
+		if ($last_lock_time > $next_day) {
 			$this->lock_broke = true;
 			return true;
 		}
