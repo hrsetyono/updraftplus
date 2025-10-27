@@ -457,7 +457,7 @@ class BlobRestProxy extends ServiceRestProxy implements IBlob
             $statusCode = Resources::STATUS_ACCEPTED;
             break;
         default:
-            throw new \Exception(Resources::NOT_IMPLEMENTED_MSG);
+            throw new \Exception(Resources::NOT_IMPLEMENTED_MSG); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
         }
         
         if (!is_null($options)) {

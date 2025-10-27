@@ -259,7 +259,7 @@ class HTTP_Request2_Observer_UncompressingDownload implements SplObserver
                 throw new HTTP_Request2_MessageException(
                     sprintf(
                         'Body length limit (%d bytes) reached',
-                        $this->_maxDownloadSize
+                        $this->_maxDownloadSize // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The escaping should happen when the exception is caught and printed
                     )
                 );
             }

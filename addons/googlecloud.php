@@ -137,12 +137,12 @@ class UpdraftPlus_Addons_RemoteStorage_googlecloud extends UpdraftPlus_RemoteSto
 		list ($bucket_name, $path) = $this->split_bucket_path($opts['bucket_path']);
 		
 		if (empty($bucket_name)) {
-			_e("Failure: No bucket details were given.", 'updraftplus');
+			esc_html_e("Failure: No bucket details were given.", 'updraftplus');
 			return;
 		}
 
 		$bucket = $this->create_bucket_if_not_existing($bucket_name);
-		if (is_wp_error($bucket)) throw new Exception("Google Cloud Storage: Error accessing or creating bucket: ".$bucket->get_error_message());
+		if (is_wp_error($bucket)) throw new Exception("Google Cloud Storage: Error accessing or creating bucket: ".$bucket->get_error_message());// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 
 
 		$storage_object = new UDP_Google_Service_Storage_StorageObject();
@@ -289,7 +289,7 @@ class UpdraftPlus_Addons_RemoteStorage_googlecloud extends UpdraftPlus_RemoteSto
 		$this->client->setDefer(false);
 		fclose($handle);
 		$this->jobdata_delete('resume_'.md5($basename));
-		if (false == $try_again) throw($e);
+		if (false == $try_again) throw $e;
 		// Reset this counter to prevent the something_useful_happened condition's possibility being sent into the far future and potentially missed
 		if ($updraftplus->current_resumption > 9) $updraftplus->jobdata_set('uploaded_lastreset', $updraftplus->current_resumption);
 		return $this->do_upload_engine($basename, $from, false);
@@ -946,7 +946,7 @@ class UpdraftPlus_Addons_RemoteStorage_googlecloud extends UpdraftPlus_RemoteSto
 		if (!$use_master) {
 
 			if (empty($opts['token']) || empty($posted_settings['clientid']) || empty($posted_settings['secret']) || $posted_settings['clientid'] != $opts['clientid'] || $posted_settings['secret'] != $opts['secret']) {
-				_e("You must save and authenticate before you can test your settings.", 'updraftplus');
+				esc_html_e("You must save and authenticate before you can test your settings.", 'updraftplus');
 				return;
 			}
 		}
@@ -964,9 +964,9 @@ class UpdraftPlus_Addons_RemoteStorage_googlecloud extends UpdraftPlus_RemoteSto
 		$storage = $this->bootstrap($opts);
 
 		if (is_wp_error($storage)) {
-			echo __("Failed", 'updraftplus').". ";
+			echo esc_html__("Failed", 'updraftplus').". ";
 			foreach ($storage->get_error_messages() as $msg) {
-				echo "$msg\n";
+				echo esc_html("$msg\n");
 			}
 			return;
 		}
@@ -981,7 +981,7 @@ class UpdraftPlus_Addons_RemoteStorage_googlecloud extends UpdraftPlus_RemoteSto
 		list ($bucket_name, $path) = $this->split_bucket_path($posted_settings['bucket_path']);// phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable -- Unused parameters are for future use.
 		
 		if (empty($bucket_name)) {
-			_e("Failure: No bucket details were given.", 'updraftplus');
+			esc_html_e("Failure: No bucket details were given.", 'updraftplus');
 			return;
 		}
 
@@ -998,13 +998,13 @@ class UpdraftPlus_Addons_RemoteStorage_googlecloud extends UpdraftPlus_RemoteSto
 		$bucket = $this->create_bucket_if_not_existing($bucket_name, $storage_class, $bucket_location);
 	
 		if (is_wp_error($bucket)) {
-			echo __("Failed", 'updraftplus').". ";
+			echo esc_html__("Failed", 'updraftplus').". ";
 			foreach ($bucket->get_error_messages() as $msg) {
-				echo "$msg\n";
+				echo esc_html("$msg\n");
 			}
 			return;
 		} elseif (!is_a($bucket, 'UDP_Google_Service_Storage_Bucket')) {
-			echo __("Failed", 'updraftplus').". (".serialize($bucket).")";
+			echo wp_kses(__("Failed", 'updraftplus').". (".serialize($bucket).")", array());
 			return;
 		}
 
@@ -1021,21 +1021,21 @@ class UpdraftPlus_Addons_RemoteStorage_googlecloud extends UpdraftPlus_RemoteSto
 				'uploadType' => 'media'
 			));
 		} catch (Exception $e) {
-			echo __('Failure', 'updraftplus').": ".__('We successfully accessed the bucket, but the attempt to create a file in it failed.', 'updraftplus')."\n";
-			echo $e->getMessage();
+			echo esc_html(__('Failure', 'updraftplus').": ".__('We successfully accessed the bucket, but the attempt to create a file in it failed.', 'updraftplus'))."\n";
+			echo wp_kses($e->getMessage(), array());
 			return;
 		}
 
 		if (is_a($result, 'UDP_Google_Service_Storage_StorageObject')) {
-			echo __('Success', 'updraftplus').": ".__('We accessed the bucket, and were able to create files within it.', 'updraftplus')."\n";
+			echo esc_html(__('Success', 'updraftplus').": ".__('We accessed the bucket, and were able to create files within it.', 'updraftplus'))."\n";
 			try {
 				$storage->objects->delete($bucket_name, $random_file_name);
 			} catch (Exception $e) {
-				echo ' '.__('Delete failed:', 'updraftplus').' '.$e->getMessage();
+				echo wp_kses(' '.__('Delete failed:', 'updraftplus').' '.$e->getMessage(), array());
 			}
 			return;
 		} else {
-			echo __('Failure', 'updraftplus').": ".__('We successfully accessed the bucket, but the attempt to create a file in it failed.', 'updraftplus').' ('.get_class($result).')';
+			echo wp_kses(__('Failure', 'updraftplus').": ".__('We successfully accessed the bucket, but the attempt to create a file in it failed.', 'updraftplus').' ('.get_class($result).')', array());
 		}
 
 	}

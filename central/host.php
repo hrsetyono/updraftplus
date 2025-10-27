@@ -51,7 +51,7 @@ abstract class UpdraftCentral_Host {
 		if (empty($key) || !isset($this->translations[$key])) return '';
 
 		if ($echo) {
-			echo $this->translations[$key];
+			echo esc_html($this->translations[$key]);
 			return;
 		}
 
@@ -143,7 +143,7 @@ abstract class UpdraftCentral_Host {
 
 				if (is_string($results)) {
 					// A handful of legacy methods, and some which are directly the source for iframes, for which JSON is not appropriate.
-					echo $results;
+					echo $results; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- We don't escape here to avoid double escaping and keep the HTML code needed by the receiver of this request. 
 				} else {
 					echo json_encode($results);
 				}
@@ -182,7 +182,8 @@ abstract class UpdraftCentral_Host {
 	 */
 	public function get_udrpc($indicator_name = 'migrator.updraftplus.com') {
 		global $updraftplus;
-		$updraftplus->ensure_phpseclib();
+		if ($updraftplus && is_a($updraftplus, 'UpdraftPlus')) $updraftplus->ensure_phpseclib();
+
 		if (!class_exists('UpdraftPlus_Remote_Communications_V2')) include_once($this->get_host_dir().'/vendor/team-updraft/common-libs/src/updraft-rpc/class-udrpc2.php');
 		$ud_rpc = new UpdraftPlus_Remote_Communications_V2($indicator_name);
 		$ud_rpc->set_can_generate(true);

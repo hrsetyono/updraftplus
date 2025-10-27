@@ -91,7 +91,7 @@ class HTTP_Request2_Adapter_Mock extends HTTP_Request2_Adapter
             $class   = get_class($response);
             $message = $response->getMessage();
             $code    = $response->getCode();
-            throw new $class($message, $code);
+            throw new $class($message, $code); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The escaping should happen when the exception is caught and printed
         }
     }
 

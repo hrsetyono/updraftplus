@@ -1,0 +1,11 @@
+commit e85ac29af46edbcc20a83f1aa1687a8fd7d8357b
+Author: David Anderson <DavidAnderson684@users.noreply.github.com>
+Date:   Thu Aug 7 16:50:09 2025 +0000
+
+    Increase likelihood of compat for non-MySQL derivatives
+
+changes/1764-handling-unsupported-table-column-collation-during-database-restoration.txt
+changes/1800-clear-the-updraft_lock_-entries-from-the-database-and-adjust-the-option-name.txt
+changes/1971-plugin-link-changes.txt
+src/includes/class-filesystem-functions.php
+branch: 1984-incremental-backup-doesn-t-work-for-more-files-entity

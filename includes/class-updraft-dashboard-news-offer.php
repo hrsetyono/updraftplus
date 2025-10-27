@@ -99,7 +99,13 @@ class Updraft_Dashboard_News_Offer extends Updraft_Dashboard_News {
 			<ul>
 				<li class="rsswidget <?php echo esc_attr($this->slug.'_dashboard_news_offer_item'); ?>">
 					<div>
-						<p style="color: #fff"><?php esc_html_e(sprintf("This website uses the %s plugin.", 'UpdraftPlus'), 'updraftplus'); ?> <?php esc_html_e("Do you want to see official news from this plugin in this Events and News section?", 'updraftplus'); ?></p>
+						<p style="color: #fff">
+						<?php
+							/* translators: %s: Plugin name */
+							echo sprintf(esc_html__('This website uses the %s plugin.', 'updraftplus'), 'UpdraftPlus');
+							esc_html_e("Do you want to see official news from this plugin in this Events and News section?", 'updraftplus');
+						?>
+						</p>
 						<a class="ud-news-confirm-link" data-val="yes" href="<?php echo esc_url(UpdraftPlus::get_current_clean_url()); ?>"><?php esc_html_e('Yes, show me the news.', 'updraftplus'); ?></a><a class="ud-news-confirm-link" href="<?php echo esc_url(UpdraftPlus::get_current_clean_url()); ?>" data-val="no"><?php esc_html_e("No, please don't.", 'updraftplus'); ?></a>
 					</div>
 				</li>
@@ -123,11 +129,11 @@ class Updraft_Dashboard_News_Offer extends Updraft_Dashboard_News {
 					e.preventDefault();
 					$this = $(this);
 					jQuery.ajax({
-						url: '<?php echo admin_url('admin-ajax.php');?>',
+						url: '<?php echo esc_url(admin_url('admin-ajax.php'));?>',
 						data : {
-							action: '<?php echo $this->slug; ?>_ajax_confirm_news_offer',
+							action: '<?php echo esc_js($this->slug); ?>_ajax_confirm_news_offer',
 							confirmation: $($this).data('val'),
-							nonce : '<?php echo wp_create_nonce($this->slug.'-confirm-news-offer');?>'
+							nonce : '<?php echo esc_js(wp_create_nonce($this->slug.'-confirm-news-offer'));?>'
 						},
 						success: function(response) {
 							if ('yes' == $($this).data('val')) {
@@ -141,7 +147,7 @@ class Updraft_Dashboard_News_Offer extends Updraft_Dashboard_News {
 							}
 						},
 						error: function(response, status, error_code) {
-							console.log("<?php echo $this->slug; ?>_confirmed_news_offer: error: "+status+" ("+error_code+")");
+							console.log("<?php echo esc_js($this->slug); ?>_confirmed_news_offer: error: "+status+" ("+error_code+")");
 							console.log(response);
 						}
 					});

@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- all exceptions thrown in this class are captured and escaped during output.
 /**
  * Socket wrapper class used by Socket Adapter
  *

@@ -193,59 +193,56 @@ class UpdraftPlus_Addon_Reporting {
 		ob_start();
 		?>
 <style type="text/css">h1, h2, h3, p, pre, ul { clear: both; margin: 0; padding: 15px 0 0;} h1, h3, ul { margin-top: 2px; margin-bottom: 0; }</style>
-<h1><?php echo get_bloginfo('name').': '.__('Backup Report', 'updraftplus');?></h1>
-<p style="float: left; clear: left; margin: 0 0 8px;"><em><?php printf(__('Backup made by %s', 'updraftplus'), '<a href="https://updraftplus.com" target="_blank">UpdraftPlus '.$updraftplus->version); ?></a></em></p>
+<h1><?php echo esc_html(get_bloginfo('name').': '.__('Backup Report', 'updraftplus'));?></h1>
+<p style="float: left; clear: left; margin: 0 0 8px;"><em><?php printf(esc_html__('Backup made by %s', 'updraftplus'), '<a href="https://updraftplus.com" target="_blank">UpdraftPlus '.esc_html($updraftplus->version)); ?></a></em></p>
 <?php
 	if (!class_exists('UpdraftPlus_Notices')) updraft_try_include_file('includes/updraftplus-notices.php', 'include_once');
 	global $updraftplus_notices;
-	$ws_advert = $updraftplus_notices->do_notice(false, 'report', true);
-	if ($ws_advert) {
-	echo '<div style="max-width: 700px; border: 1px solid; border-radius: 4px; font-size:110%; line-height: 110%; padding:8px; margin: 6px 0 12px; clear:left;">'.$ws_advert.'</div>';
-	}
+	$updraftplus_notices->do_notice(false, 'report', false);
 ?>
-<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo __('Backup of:', 'updraftplus'); ?></div> <div style="float: left;"><a href="<?php echo esc_attr(site_url()); ?>"><?php echo site_url();?></a></div></div>
-<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo __('Latest status:', 'updraftplus');?></div> <div style="float: left;"><?php echo $final_message; ?></div></div>
-<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo __('Backup began:', 'updraftplus');?></div> <div style="float: left;"><?php echo $date; ?></div></div>
-<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo __('Contains:', 'updraftplus');?></div> <div style="float: left;"><?php echo $contains; ?></div></div>
+<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html__('Backup of:', 'updraftplus'); ?></div> <div style="float: left;"><a href="<?php echo esc_url(site_url()); ?>"><?php echo esc_html(site_url());?></a></div></div>
+<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html__('Latest status:', 'updraftplus');?></div> <div style="float: left;"><?php echo esc_html($final_message); ?></div></div>
+<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html__('Backup began:', 'updraftplus');?></div> <div style="float: left;"><?php echo esc_html($date); ?></div></div>
+<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html__('Contains:', 'updraftplus');?></div> <div style="float: left;"><?php echo esc_html($contains); ?></div></div>
 <?php
 	$extra_messages = apply_filters('updraftplus_report_extramessages', array());
-	$extra_msg = '';
 	if (is_array($extra_messages)) {
-	foreach ($extra_messages as $msg) {
-		$extra_msg .= '<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;">'.htmlspecialchars($msg['key']).'</div> <div style="float: left;">'.htmlspecialchars($msg['val']).'</div></div>';
+		foreach ($extra_messages as $msg) {
+			?>
+			<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html($msg['key']);?></div> <div style="float: left;"><?php echo esc_html($msg['val']); ?></div></div>
+			<?php
+		}
 	}
-	}
-	echo $extra_msg;
 ?>
-<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo __('Errors / warnings:', 'updraftplus');?></div> <div style="float: left;"><?php echo $errors_and_warns; ?></div></div>
+<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html__('Errors / warnings:', 'updraftplus');?></div> <div style="float: left;"><?php echo esc_html($errors_and_warns); ?></div></div>
 <?php
 		if ($updraftplus->error_count() > 0) {
-	echo '<h2>'.__('Errors', 'updraftplus')."</h2>\n<ul>";
+	echo '<h2>'.esc_html__('Errors', 'updraftplus')."</h2>\n<ul>";
 	foreach ($updraftplus->errors as $err) {
 		if (is_wp_error($err)) {
 			foreach ($err->get_error_messages() as $msg) {
-				echo "<li>".htmlspecialchars(rtrim($msg))."</li>\n";
+				echo "<li>".esc_html(rtrim($msg))."</li>\n";
 			}
 		} elseif (is_array($err) && 'error' == $err['level']) {
-			echo "<li>".htmlspecialchars(rtrim($err['message']))."</li>\n";
+			echo "<li>".esc_html(rtrim($err['message']))."</li>\n";
 		} elseif (is_string($err)) {
-			echo "<li>".htmlspecialchars(rtrim($err))."</li>\n";
+			echo "<li>".esc_html(rtrim($err))."</li>\n";
 		}
 	}
 	echo "</ul>\n";
 		}
 		if (is_array($warnings) && count($warnings) >0) {
-	echo '<h2>'.__('Warnings', 'updraftplus')."</h2>\n<ul>";
+	echo '<h2>'.esc_html__('Warnings', 'updraftplus')."</h2>\n<ul>";
 	foreach ($warnings as $err) {
-		echo "<li>".rtrim($err)."</li>\n";
+		echo "<li>".esc_html(rtrim($err))."</li>\n";
 	}
 	echo "</ul>\n";
-	echo '<p><em>'.__('Note that warning messages are advisory - the backup process does not stop for them.', 'updraftplus').' '.__('Instead, they provide information that you might find useful, or that may indicate the source of a problem if the backup did not succeed.', 'updraftplus').'</em></p>';
+	echo '<p><em>'.esc_html(__('Note that warning messages are advisory - the backup process does not stop for them.', 'updraftplus').' '.__('Instead, they provide information that you might find useful, or that may indicate the source of a problem if the backup did not succeed.', 'updraftplus')).'</em></p>';
 		}
 		?>
 <p>
-<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo __('Time taken:', 'updraftplus');?></div> <div style="float: left;"><?php echo $time_taken;?></div></div>
-<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo __('Uploaded to:', 'updraftplus');?></div> <div style="float: left;"><?php
+<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html__('Time taken:', 'updraftplus');?></div> <div style="float: left;"><?php echo esc_html($time_taken);?></div></div>
+<div style="width: 100%; display: table; margin-bottom: 5px;"><div style="font-weight: bold; width: 200px; float: left;"><?php echo esc_html__('Uploaded to:', 'updraftplus');?></div> <div style="float: left;"><?php
 
 			$show_services = '';
 			foreach ($services as $serv) {
@@ -269,31 +266,31 @@ class UpdraftPlus_Addon_Reporting {
 			}
 			if ('' == $show_services && $add_none) $show_services .= __('None', 'updraftplus');
 
-			echo $show_services."</div></div></p>\n\n";
+			echo wp_kses_post($show_services)."</div></div></p>\n\n";
 
 			$checksums = $updraftplus->which_checksums();
 
 			if (!empty($file_entities)) {
 	foreach ($file_entities as $entity => $info) {
-		echo $updraftplus->printfile($info['description'], $history, $entity, $checksums, $jobdata);
+		echo $updraftplus->printfile($info['description'], $history, $entity, $checksums, $jobdata);// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- needs to be presented in html
 	}
 			}
 
 			if (!empty($history)) {
 	foreach ($history as $key => $val) {
 		if ('db' == strtolower(substr($key, 0, 2)) && '-size' != substr($key, -5, 5)) {
-			echo $updraftplus->printfile(__('Database', 'updraftplus'), $history, $key, $checksums, $jobdata);
+			echo $updraftplus->printfile(__('Database', 'updraftplus'), $history, $key, $checksums, $jobdata);// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- needs to be presented in html
 		}
 	}
 			}
 
-			echo '<p>'.__('The log file has been attached to this email.', 'updraftplus')."</p>\n\n";
+			echo '<p>'.esc_html__('The log file has been attached to this email.', 'updraftplus')."</p>\n\n";
 
 			if ($debug) {
-	echo '<h2>'.__('Debugging information', 'updraftplus')."</h2>\n<pre>";
-	print chunk_split(base64_encode(serialize($jobdata)), 76, "\n");
+	echo '<h2>'.esc_html__('Debugging information', 'updraftplus')."</h2>\n<pre>";
+	print esc_html(chunk_split(base64_encode(serialize($jobdata)), 76, "\n"));
 	print "\n";
-	print chunk_split(base64_encode(serialize($history)), 76, "\n");
+	print esc_html(chunk_split(base64_encode(serialize($history)), 76, "\n"));
 	echo "</pre>";
 			}
 
@@ -514,8 +511,8 @@ class UpdraftPlus_Addon_Reporting {
 	public function configprint_expertoptions() {
 		?>
 		<tr class="expertmode updraft-hidden" style="display:none;">
-			<th><?php _e('Log all messages to syslog', 'updraftplus');?>:</th>
-			<td><input type="checkbox" id="updraft_log_syslog" name="updraft_log_syslog" value="1" <?php if (UpdraftPlus_Options::get_updraft_option('updraft_log_syslog')) echo 'checked="checked"'; ?>> <br><label for="updraft_log_syslog"><?php _e("Log all messages to syslog (only server admins are likely to want this)", 'updraftplus'); ?></label></td>
+			<th><?php esc_html_e('Log all messages to syslog', 'updraftplus');?>:</th>
+			<td><input type="checkbox" id="updraft_log_syslog" name="updraft_log_syslog" value="1" <?php if (UpdraftPlus_Options::get_updraft_option('updraft_log_syslog')) echo 'checked="checked"'; ?>> <br><label for="updraft_log_syslog"><?php esc_html_e("Log all messages to syslog (only server admins are likely to want this)", 'updraftplus'); ?></label></td>
 		</tr>
 		<?php
 	}

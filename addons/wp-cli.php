@@ -767,7 +767,8 @@ class UpdraftPlus_CLI_Command extends WP_CLI_Command {
 		}
 		
 		// This will be removed by Updraft_Restorer::post_restore_clean_up()
-		set_error_handler(array($updraftplus, 'php_error'), E_ALL & ~E_STRICT);
+		$error_levels = version_compare(PHP_VERSION, '8.4.0', '>=') ? E_ALL : E_ALL & ~E_STRICT;
+		set_error_handler(array($updraftplus, 'php_error'), $error_levels);
 		// Gather the restore options into one place - code after here should read the options, and not the HTTP variables
 		$restore_options = array();
 		$restore_options['updraft_encryptionphrase'] = empty($assoc_args['db-decryption-phrase']) ? '' : $assoc_args['db-decryption-phrase'];
@@ -1207,7 +1208,7 @@ class UpdraftPlus_CLI_Command extends WP_CLI_Command {
 		}
 
 		// reset the secret token, this can change if we have been given one from the queue
-		$secret_token = $response['secret_token'];
+		if (isset($response['secret_token'])) $secret_token = $response['secret_token'];
 		$clone_url = $response['url'];
 		$key = $response['key'];
 		
@@ -1226,6 +1227,7 @@ class UpdraftPlus_CLI_Command extends WP_CLI_Command {
 			'key' => $key,
 			'backup_nonce' => 'current',
 			'backup_timestamp' => 'current',
+			'clone_region' => $region,
 		);
 		$this->commands->backupnow($params);
 		

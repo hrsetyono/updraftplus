@@ -147,7 +147,7 @@ class PEAR
 	public function __construct($error_class = null) {
 		$classname = strtolower(get_class($this));
 		if ($this->_debug) {
-			print "PEAR constructor called, class=$classname\n";
+			print wp_kses_post("PEAR constructor called, class=$classname\n");
 		}
 
 		if ($error_class !== null) {
@@ -183,7 +183,7 @@ class PEAR
      */
 	public function __destruct() {
 		if ($this->_debug) {
-			printf("PEAR destructor called, class=%s\n", strtolower(get_class($this)));
+			printf(wp_kses_post(sprintf("PEAR destructor called, class=%s\n", strtolower(get_class($this)))));
 		}
 	}
 
@@ -863,11 +863,11 @@ class PEAR_Error
                 $format = $options;
             }
 
-            printf($format, $this->getMessage());
+            printf($format, $this->getMessage());// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
         }
 
         if ($this->mode & PEAR_ERROR_TRIGGER) {
-            trigger_error($this->getMessage(), $this->level);
+            trigger_error($this->getMessage(), $this->level);// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
         }
 
         if ($this->mode & PEAR_ERROR_DIE) {
@@ -880,7 +880,7 @@ class PEAR_Error
             } else {
                 $format = $options;
             }
-            die(sprintf($format, $msg));
+            die(sprintf($format, $msg));// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
         }
 
         if ($this->mode & PEAR_ERROR_CALLBACK && is_callable($this->callback)) {
@@ -888,8 +888,9 @@ class PEAR_Error
         }
 
         if ($this->mode & PEAR_ERROR_EXCEPTION) {
-            trigger_error("PEAR_ERROR_EXCEPTION is obsolete, use class PEAR_Exception for exceptions", E_USER_WARNING);
-            eval('$e = new Exception($this->message, $this->code);throw($e);');
+           trigger_error("PEAR_ERROR_EXCEPTION is obsolete, use class PEAR_Exception for exceptions", E_USER_WARNING);
+           $e = new Exception($this->message, $this->code);
+           throw $e;
         }
     }
 

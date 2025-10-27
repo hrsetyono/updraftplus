@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 /**
  * Socket-based adapter for HTTP_Request2
  *
@@ -1142,5 +1143,5 @@ class HTTP_Request2_Adapter_Socket extends HTTP_Request2_Adapter
         return $data;
     }
 }
-
+// phpcs:enable
 ?>

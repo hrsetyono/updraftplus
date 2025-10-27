@@ -100,6 +100,9 @@ class UpdraftPlus_Addons_RemoteStorage_pcloud extends UpdraftPlus_BackupModule {
 		
 		if (!is_array($pcloud)) return $opts;
 
+		// Handle only version field being saved in the plugin free version.
+		if (!isset($opts['settings'])) return $pcloud;
+
 		// Remove instances that no longer exist
 		foreach ($opts['settings'] as $instance_id => $storage_options) {
 			if (!isset($pcloud['settings'][$instance_id])) unset($opts['settings'][$instance_id]);
@@ -110,6 +113,9 @@ class UpdraftPlus_Addons_RemoteStorage_pcloud extends UpdraftPlus_BackupModule {
 		foreach ($pcloud['settings'] as $instance_id => $storage_options) {
 			// Now loop over the new options, and replace old options with them
 			foreach ($storage_options as $key => $value) {
+				// Reset "folderid" if folder name is changed
+				if ('folder' == $key && isset($opts['settings'][$instance_id][$key]) && $opts['settings'][$instance_id][$key] != $value) $opts['settings'][$instance_id]['folderid'] = 0;
+
 				if (null === $value) {
 					unset($opts['settings'][$instance_id][$key]);
 				} else {
@@ -508,7 +514,7 @@ class UpdraftPlus_Addons_RemoteStorage_pcloud extends UpdraftPlus_BackupModule {
 		ob_start();
 		?>
 			<tr class="{{get_template_css_classes true}}">
-				<th><?php _e('Store at', 'updraftplus');?>:</th>
+				<th><?php esc_html_e('Store at', 'updraftplus');?>:</th>
 				<td>
 					{{folder_path}}<input type="text" style="width: 292px" id="{{get_template_input_attribute_value "id" "folder"}}" name="{{get_template_input_attribute_value "name" "folder"}}" value="{{folder}}">
 				</td>
@@ -545,7 +551,7 @@ class UpdraftPlus_Addons_RemoteStorage_pcloud extends UpdraftPlus_BackupModule {
 		$properties = array(
 			'storage_image_url' => UPDRAFTPLUS_URL.'/images/pcloud-logo.png',
 			'storage_image_title' => __(sprintf(__('%s logo', 'updraftplus'), $updraftplus->backup_methods[$this->get_id()])),
-			'storage_long_description' => wp_kses(sprintf(__('Please read %s for use of our %s authorization app (none of your backup data is sent to us).', 'updraftplus'), '<a target="_blank" href="https://updraftplus.com/faqs/what-is-your-privacy-policy-for-the-use-of-your-pcloud-app/">'.__('this privacy policy', 'updraftplus').'</a>', $updraftplus->backup_methods[$this->get_id()]), $this->allowed_html_for_content_sanitisation()),
+			'storage_long_description' => wp_kses(sprintf(__('Please read %s for use of our %s authorization app (none of your backup data is sent to us).', 'updraftplus'), '<a target="_blank" href="https://teamupdraft.com/privacy?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=pcloud-privacy&utm_creative_format=text">'.__('this privacy policy', 'updraftplus').'</a>', $updraftplus->backup_methods[$this->get_id()]), $this->allowed_html_for_content_sanitisation()),
 			'authentication_label' => sprintf(__('Authenticate with %s', 'updraftplus'),  $updraftplus->backup_methods[$this->get_id()]),
 			'already_authenticated_label' => __('(You are already authenticated).', 'updraftplus'),
 			'deauthentication_link_text' => sprintf(__("Follow this link to remove these settings for %s.", 'updraftplus'), $updraftplus->backup_methods[$this->get_id()]),

@@ -75,7 +75,7 @@ class UpdraftPlus_Addons_Importer {
 			}
 		}
 
-		return '<p><a href="https://updraftplus.com/support/using-third-party-backups/" target="_blank">'.__('Was this a backup created by a different backup plugin? If so, then you might first need to rename it so that it can be recognized - please follow this link.', 'updraftplus').'</a></p><p>'.sprintf(__('Supported backup plugins: %s', 'updraftplus'), $supported).'</p>';
+		return '<p><a href="https://teamupdraft.com/documentation/updraftplus/premium-features/how-to-restore-from-other-backup-plugins/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=unknown&utm_creative_format=unknown" target="_blank">'.__('Was this a backup created by a different backup plugin? If so, then you might first need to rename it so that it can be recognized - please follow this link.', 'updraftplus').'</a></p><p>'.sprintf(__('Supported backup plugins: %s', 'updraftplus'), $supported).'</p>';
 	}
 
 	/**
@@ -215,7 +215,7 @@ class UpdraftPlus_Addons_Importer {
 					while (($file = readdir($handle)) !== false) {
 						if (strtolower(substr($file, -4, 4)) == '.sql') {
 							if (is_string($found_sql)) {
-								trigger_error("Multiple .sql files found in backwpup backup - don't know which to use ($found_sql, $file)", E_USER_WARNING);
+								trigger_error("Multiple .sql files found in backwpup backup - couldn't work out which to use ($found_sql, $file)", array(), E_USER_WARNING); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The escaping should be happening when the exception is printed
 								return false;
 							} else {
 								$found_sql = 'iwp_db/'.(string) $file;

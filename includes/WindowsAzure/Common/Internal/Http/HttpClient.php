@@ -380,7 +380,7 @@ class HttpClient implements IHttpClient
     public static function throwIfError($actual, $reason, $message, $expected)
     {
         if (!in_array($actual, $expected)) {
-            throw new ServiceException($actual, $reason, $message);
+            throw new ServiceException($actual, $reason, $message); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
         }
     }
 }

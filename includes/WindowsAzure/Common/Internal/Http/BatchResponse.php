@@ -102,7 +102,7 @@ class BatchResponse
                     if (!in_array($statusCode, $expectedCodes)) {
                         $reason = $response->getReasonPhrase();
 
-                        throw new ServiceException($statusCode, $reason, $body);
+                        throw new ServiceException($statusCode, $reason, $body); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
                     }
                 }
 

@@ -182,15 +182,15 @@ class PEAR_Exception extends Exception
             switch ($func[0]) {
                 case self::OBSERVER_PRINT :
                     $f = (isset($func[1])) ? $func[1] : '%s';
-                    printf($f, $this->getMessage());
+                    printf($f, $this->getMessage());// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
                     break;
                 case self::OBSERVER_TRIGGER :
                     $f = (isset($func[1])) ? $func[1] : E_USER_NOTICE;
-                    trigger_error($this->getMessage(), $f);
+                    trigger_error($this->getMessage(), $f);// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
                     break;
                 case self::OBSERVER_DIE :
                     $f = (isset($func[1])) ? $func[1] : '%s';
-                    die(printf($f, $this->getMessage()));
+                    die(printf($f, $this->getMessage()));// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
                     break;
                 default:
                     trigger_error('invalid observer type', E_USER_WARNING);

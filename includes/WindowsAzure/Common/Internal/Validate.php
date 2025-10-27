@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
 
 /**
  * LICENSE: Licensed under the Apache License, Version 2.0 (the "License");

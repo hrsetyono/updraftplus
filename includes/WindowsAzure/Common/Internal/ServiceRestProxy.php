@@ -188,7 +188,7 @@ class ServiceRestProxy extends RestProxy
                     break;
                 
                 default:
-                    throw new \Exception(Resources::INVALID_ACH_MSG);
+                    throw new \Exception(Resources::INVALID_ACH_MSG); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
                     break;
                 }
             }
@@ -281,7 +281,7 @@ class ServiceRestProxy extends RestProxy
                 if (   strpos($value, "\r") !== false
                     || strpos($value, "\n") !== false
                 ) {
-                    throw new \InvalidArgumentException(Resources::INVALID_META_MSG);
+                    throw new \InvalidArgumentException(Resources::INVALID_META_MSG); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
                 }
                 
                 $headerName                  .= strtolower($key);

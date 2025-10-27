@@ -102,7 +102,7 @@ class Client {
 		$result = curl_exec($curl);
 		
 		if (false === $result) {
-			throw new \Exception('curl_exec() failed: ' . curl_error($curl));
+			throw new \Exception('curl_exec() failed: ' . curl_error($curl)); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
 		}
 
 		$info = curl_getinfo($curl);
@@ -128,7 +128,7 @@ class Client {
 		$vars    = get_object_vars($decoded);
 		
 		if (array_key_exists('error', $vars)) {
-			throw new \Exception($decoded->error->message, (int) $decoded->error->code);
+			throw new \Exception($decoded->error->message, (int) $decoded->error->code); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
 		}
 
 		return $decoded;
@@ -337,7 +337,7 @@ class Client {
 
 		if (false === $result) {
 			if (curl_errno($curl)) {
-				throw new \Exception('Curl error: '.curl_error($curl));
+				throw new \Exception('Curl error: '.curl_error($curl)); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
 			} else {
 				throw new \Exception('Curl error: empty response');
 			}
@@ -372,12 +372,12 @@ class Client {
 	/**
 	 * Performs a call to the OneDrive API using the GET method.
 	 *
-	 * @param  (string) $path - The path of the API call (eg. me/skydrive).
-	 * @param  (array) $options - Further curl options to set.
- 
+	 * @param  (string)  $path - The path of the API call (eg. me/skydrive).
+	 * @param  (array)   $options - Further curl options to set.
+	 * @param  (boolean) $use_authorization_header - Whether to include authorisation header in the request (it's true by default)
 	 * @return (boolean) Object of result
 	 */
-	public function apiGet($path, $options = array()) {
+	public function apiGet($path, $options = array(), $use_authorization_header = true) {
 		$api = $this->api_url;
 		
 		$url  = (strpos($path, 'https://') === 0) ? $path : $api . $path;
@@ -385,13 +385,15 @@ class Client {
 		if (!$this->use_msgraph_api) $url .= '?access_token=' . urlencode($this->_state->token->data->access_token);
 		
 		$curl = $this->_createCurl($path, $options);
-		
 		$curl_options = array(
-			CURLOPT_URL			=> $url,
-			CURLOPT_HTTPHEADER 	=> array(
-				'Authorization: Bearer ' . $this->_state->token->data->access_token
-			),
+			CURLOPT_URL => $url,
 		);
+
+		if ($use_authorization_header) {
+			$curl_options[CURLOPT_HTTPHEADER] = array(
+				'Authorization: Bearer ' . $this->_state->token->data->access_token
+			);
+		}
 		
 		curl_setopt_array($curl, $curl_options);
 		//curl_setopt($curl, CURLOPT_URL, $url);

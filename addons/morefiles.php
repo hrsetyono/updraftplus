@@ -149,13 +149,9 @@ class UpdraftPlus_Addons_MoreFiles {
 	public function restore_form_wpcore() {
 
 		?>
-		<div id="updraft_restorer_wpcoreoptions" style="display:none; padding:12px; margin: 8px 0 4px; border: dashed 1px;"><h4 style="margin: 0px 0px 6px; padding:0px;"><?php echo sprintf(__('%s restoration options:', 'updraftplus'), __('WordPress Core', 'updraftplus')); ?></h4>
+		<div id="updraft_restorer_wpcoreoptions" style="display:none; padding:12px; margin: 8px 0 4px; border: dashed 1px;"><h4 style="margin: 0px 0px 6px; padding:0px;"><?php echo esc_html(sprintf(__('%s restoration options:', 'updraftplus'), __('WordPress Core', 'updraftplus'))); ?></h4>
 
-			<?php
-
-			echo '<input name="updraft_restorer_wpcore_includewpconfig" id="updraft_restorer_wpcore_includewpconfig" type="checkbox" value="1"><label for="updraft_restorer_wpcore_includewpconfig"> '.__('Over-write wp-config.php', 'updraftplus').'</label> <a href="https://updraftplus.com/faqs/when-i-restore-wordpress-core-should-i-include-wp-config-php-in-the-restoration/" target="_blank">'.__('(learn more about this significant option)', 'updraftplus').'</a>';
-
-			?>
+			<input name="updraft_restorer_wpcore_includewpconfig" id="updraft_restorer_wpcore_includewpconfig" type="checkbox" value="1"><label for="updraft_restorer_wpcore_includewpconfig"> <?php esc_html_e('Over-write wp-config.php', 'updraftplus'); ?></label> <a href="https://updraftplus.com/faqs/when-i-restore-wordpress-core-should-i-include-wp-config-php-in-the-restoration/" target="_blank"><?php esc_html_e('(learn more about this significant option)', 'updraftplus'); ?></a>
 
 			<script>
 				jQuery('#updraft_restore_wpcore').on('change', function(){
@@ -616,9 +612,9 @@ class UpdraftPlus_Addons_MoreFiles {
 	 * $working_dir is the directory which contains the backup entity/ies. It is a child of wp-content/upgrade
 	 * We need to make sure we do not over-write any entities that are restored elsewhere. i.e. Don't touch plugins/themes etc. - but use backupable_file_entities in order to be fully compatible, but with an additional over-ride of touching nothing inside WP_CONTENT_DIR. Can recycle code from the 'others' handling to assist with this.
 	 *
-	 * @param  string $working_dir
-	 * @param  string $wp_dir
-	 * @return array
+	 * @param  string $working_dir The directory where the WP-Core backup file(s) have been extracted
+	 * @param  string $wp_dir      The root directory of the WordPress
+	 * @return boolean|WP_Error    True if all extraced WP-Core files are successfully copy and/or moved to the WordPress directory, otherwise false or WP_Error object if there's a failure
 	 */
 	public function restore_movein_wpcore($working_dir, $wp_dir) {
 
@@ -627,8 +623,11 @@ class UpdraftPlus_Addons_MoreFiles {
 		// On subsequent archives of a multi-archive set, don't move anything; but do on the first
 		$preserve_existing = isset($updraftplus_restorer->been_restored['wpcore']) ? Updraft_Restorer::MOVEIN_COPY_IN_CONTENTS : Updraft_Restorer::MOVEIN_OVERWRITE_NO_BACKUP;
 
-		return $updraftplus_restorer->move_backup_in($working_dir, $wp_dir, $preserve_existing, array(basename(WP_CONTENT_DIR)), 'wpcore');
-
+		if (null !== ($result = apply_filters('updraftplus_use_builtin_wpcore_restoration', null, $working_dir, $wp_dir, 1))) {
+			return $result;
+		} else {
+			return $updraftplus_restorer->move_backup_in($working_dir, $wp_dir, $preserve_existing, array(basename(WP_CONTENT_DIR)), 'wpcore');
+		}
 	}
 
 	/**
@@ -1052,14 +1051,14 @@ class UpdraftPlus_Addons_MoreFiles {
 				if (!is_array($paths)) $paths = array($paths);
 				$maxind = max(count($paths) - 1, 1);
 				$maxind++;
-				$edit = esc_js(__('Edit', 'updraftplus'));
-				$remove = esc_js(__('Remove', 'updraftplus'));
-				$placeholder = esc_js(__('Please choose a file or directory', 'updraftplus'));
+				$edit = __('Edit', 'updraftplus');
+				$remove = __('Remove', 'updraftplus');
+				$placeholder = __('Please choose a file or directory', 'updraftplus');
 			?>
-			var updraftplus_morefiles_lastind = <?php echo $maxind; ?>;
-			var edit = "<?php echo $edit; ?>";
-			var remove = "<?php echo $remove; ?>";
-			var placeholder = "<?php echo $placeholder; ?>";
+			var updraftplus_morefiles_lastind = <?php echo (int) $maxind; ?>;
+			var edit = "<?php echo esc_js($edit); ?>";
+			var remove = "<?php echo esc_js($remove); ?>";
+			var placeholder = "<?php echo esc_js($placeholder); ?>";
 			jQuery('#updraft_include_more').on('click', function() {
 				if (jQuery('#updraft_include_more').is(':checked')) {
 					jQuery('#updraft_include_more_options').slideDown();

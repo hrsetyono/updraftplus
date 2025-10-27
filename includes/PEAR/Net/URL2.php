@@ -1018,7 +1018,7 @@ class Net_URL2
                 'Unable to remove dot segments; hit loop limit %d (left: %s)',
                 $j, var_export($path, true)
             );
-            trigger_error($message, E_USER_WARNING);
+            trigger_error($message, E_USER_WARNING);// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
         }
 
         return $output;

@@ -479,7 +479,7 @@ class UpdraftPlus_Addons_RemoteStorage_webdav extends UpdraftPlus_RemoteStorage_
 	public function credentials_test($posted_settings) {
 	
 		if (empty($posted_settings['url'])) {
-			printf(__("Failure: No %s was given.", 'updraftplus'), 'URL');
+			printf(esc_html__("Failure: No %s was given.", 'updraftplus'), 'URL');
 			return;
 		}
 
@@ -501,7 +501,7 @@ class UpdraftPlus_Addons_RemoteStorage_webdav extends UpdraftPlus_RemoteStorage_
 			if ($res) $this->unlink($testfile);
 		}
 		if (!$res) $msg = __("Failed: We were not able to place a file in that directory - please check your credentials.", 'updraftplus');
-		echo $msg;
+		echo wp_kses($msg, array());
 	}
 
 	/**
@@ -642,7 +642,7 @@ class UpdraftPlus_Addons_RemoteStorage_webdav extends UpdraftPlus_RemoteStorage_
 								}
 								fclose($handle);
 							} else {
-								throw new Exception("WebDAV: Failed to open file for reading: $file");
+								throw new Exception("WebDAV: Failed to open file for reading: $file");// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 							}
 							break 2;
 						} else {
@@ -1111,24 +1111,24 @@ class UpdraftPlus_Addons_RemoteStorage_webdav extends UpdraftPlus_RemoteStorage_
 			case 400:
 				if (false !== strpos($result->getBody(), 'Content-Range')) {
 					$this->log('WebDAV server returned 400 due to Content-Range issue; will try all-at-once method');
-					if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(__('WebDAV server returned 400; probably does not support Content-Range (chunks)', 'updraftplus'));
+					if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(__('WebDAV server returned 400; probably does not support Content-Range (chunks)', 'updraftplus'));// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 					return ($use_chunk) ? -1 : false; // "-1" recoverable error, false if chunks is in use
 				} else {
 					$msg = UpdraftPlus_HTTP_Error_Descriptions::get_http_status_code_description($result->getStatus());
 					$this->log(sprintf("Unexpected HTTP response code (%s): %s", $result->getStatus(), $msg));
-					if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(sprintf(__("Unexpected HTTP response code (%s): %s", "updraftplus"), $result->getStatus(), $msg));
+					if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(sprintf(__("Unexpected HTTP response code (%s): %s", "updraftplus"), $result->getStatus(), $msg));// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 					return false;
 				}
 				break;
 			case 501:
 				$this->log('WebDAV server returned 501; probably does not support Content-Range; will try all-at-once method');
-				if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(__('WebDAV server returned 501; probably does not support Content-Range (chunks)', 'updraftplus'));
+				if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(__('WebDAV server returned 501; probably does not support Content-Range (chunks)', 'updraftplus'));// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 				return ($use_chunk) ? -1 : false; // "-1" recoverable error, false if chunks is in use
 				break;
 			default:
 				$msg = UpdraftPlus_HTTP_Error_Descriptions::get_http_status_code_description($result->getStatus());
 				$this->log(sprintf("Unexpected HTTP response code (%s): %s", $result->getStatus(), $msg));
-				if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(sprintf(__("Unexpected HTTP response code (%s): %s", "updraftplus"), $result->getStatus(), $msg));
+				if (self::CREDENTIALS_TEST_DATA === $buffer) throw new Exception(sprintf(__("Unexpected HTTP response code (%s): %s", "updraftplus"), $result->getStatus(), $msg));// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 				return false;
 		}
 

@@ -399,18 +399,18 @@ class UpdraftPlus_Addon_S3_Enhanced {
 		?>
 		<div id="updraft_s3newapiuser_form">
 			<p class="updraft-s3newapiuser-first-para">
-				<em><?php echo __('Enter your administrative Amazon S3 access/secret keys (this needs to be a key pair with enough rights to create new users and buckets), and a new (unique) username for the new user and a bucket name.', 'updraftplus').' '.__('These will be used to create a new user and key pair with an IAM policy attached which will only allow it to access the indicated bucket.', 'updraftplus').' '.__('Then, these lower-powered access credentials can be used, instead of storing your administrative keys.', 'updraftplus');?></em>
+				<em><?php echo esc_html(__('Enter your administrative Amazon S3 access/secret keys (this needs to be a key pair with enough rights to create new users and buckets), and a new (unique) username for the new user and a bucket name.', 'updraftplus').' '.__('These will be used to create a new user and key pair with an IAM policy attached which will only allow it to access the indicated bucket.', 'updraftplus').' '.__('Then, these lower-powered access credentials can be used, instead of storing your administrative keys.', 'updraftplus'));?></em>
 			</p>
 			
 			<div id="updraft-s3newapiuser-results"><p></p></div>
 
 			<p class="updraft-s3newapiuser-settings-para">
 
-			<label for="updraft_s3newapiuser_adminaccesskey"><?php _e('Admin access key', 'updraftplus');?></label> <input type="text" id="updraft_s3newapiuser_adminaccesskey" value="">
-			<label for="updraft_s3newapiuser_adminsecret"><?php _e('Admin secret key', 'updraftplus');?></label> <input type="text" id="updraft_s3newapiuser_adminsecret" value="">
-			<label for="updraft_s3newapiuser_newuser"><?php _e("New IAM username", 'updraftplus');?></label> <input type="text" id="updraft_s3newapiuser_newuser" value="">
+			<label for="updraft_s3newapiuser_adminaccesskey"><?php esc_html_e('Admin access key', 'updraftplus');?></label> <input type="text" id="updraft_s3newapiuser_adminaccesskey" value="">
+			<label for="updraft_s3newapiuser_adminsecret"><?php esc_html_e('Admin secret key', 'updraftplus');?></label> <input type="text" id="updraft_s3newapiuser_adminsecret" value="">
+			<label for="updraft_s3newapiuser_newuser"><?php esc_html_e("New IAM username", 'updraftplus');?></label> <input type="text" id="updraft_s3newapiuser_newuser" value="">
 
-			<label for="updraft_s3newapiuser_region"><?php _e('S3 storage region', 'updraftplus');?>:</label>
+			<label for="updraft_s3newapiuser_region"><?php esc_html_e('S3 storage region', 'updraftplus');?>:</label>
 			<select id="updraft_s3newapiuser_region">
 				<?php
 					$regions = array(
@@ -442,25 +442,25 @@ class UpdraftPlus_Addon_S3_Enhanced {
 					$selregion = 'us-east-1';
 					foreach ($regions as $reg => $desc) {
 					?>
-					<option <?php if ($selregion == $reg) echo 'selected="selected"'; ?> value="<?php echo $reg;?>"><?php echo htmlspecialchars($desc); ?></option>
+					<option <?php if ($selregion == $reg) echo 'selected="selected"'; ?> value="<?php echo esc_attr($reg);?>"><?php echo esc_html($desc); ?></option>
 					<?php
 					}
 				?>
 			</select>
-			<label for="updraft_s3newapiuser_bucket"><?php _e("S3 bucket", 'updraftplus');?></label><span class="updraft_s3newapiuser_textexplain">s3://</span><input type="text" id="updraft_s3newapiuser_bucket" value="">
+			<label for="updraft_s3newapiuser_bucket"><?php esc_html_e("S3 bucket", 'updraftplus');?></label><span class="updraft_s3newapiuser_textexplain">s3://</span><input type="text" id="updraft_s3newapiuser_bucket" value="">
 			
-			<label aria-label="<?php echo __("Allow download", 'updraftplus').'. '.__('Without this permission, you cannot directly download or restore using UpdraftPlus, and will instead need to visit the AWS website.', 'updraftplus'); ?>" for="updraft_s3newapiuser_allowdownload"><?php _e("Allow download", 'updraftplus');?></label>
+			<label aria-label="<?php echo esc_attr(__("Allow download", 'updraftplus').'. '.__('Without this permission, you cannot directly download or restore using UpdraftPlus, and will instead need to visit the AWS website.', 'updraftplus')); ?>" for="updraft_s3newapiuser_allowdownload"><?php esc_html_e("Allow download", 'updraftplus');?></label>
 			<input type="checkbox" id="updraft_s3newapiuser_allowdownload" value="1" checked="checked">
-			<span class="updraft_s3newapiuser_checkboxexplain"><em><?php _e('Without this permission, you cannot directly download or restore using UpdraftPlus, and will instead need to visit the AWS website.', 'updraftplus');?></em></span>
+			<span class="updraft_s3newapiuser_checkboxexplain"><em><?php esc_html_e('Without this permission, you cannot directly download or restore using UpdraftPlus, and will instead need to visit the AWS website.', 'updraftplus');?></em></span>
 
-			<label aria-label="<?php echo __("Allow deletion", 'updraftplus').'. '.__("Without this permission, UpdraftPlus cannot delete backups - you should also set your 'retain' settings very high to prevent seeing deletion errors.", 'updraftplus');?>" for="updraft_s3newapiuser_allowdelete"><?php _e("Allow deletion", 'updraftplus');?></label>
+			<label aria-label="<?php echo esc_attr(__("Allow deletion", 'updraftplus').'. '.__("Without this permission, UpdraftPlus cannot delete backups - you should also set your 'retain' settings very high to prevent seeing deletion errors.", 'updraftplus'));?>" for="updraft_s3newapiuser_allowdelete"><?php esc_html_e("Allow deletion", 'updraftplus');?></label>
 			<input type="checkbox" id="updraft_s3newapiuser_allowdelete" value="1" checked="checked">
-			<span class="updraft_s3newapiuser_checkboxexplain"><em><?php _e("Without this permission, UpdraftPlus cannot delete backups - you should also set your 'retain' settings very high to prevent seeing deletion errors.", 'updraftplus');?></em></span>
+			<span class="updraft_s3newapiuser_checkboxexplain"><em><?php esc_html_e("Without this permission, UpdraftPlus cannot delete backups - you should also set your 'retain' settings very high to prevent seeing deletion errors.", 'updraftplus');?></em></span>
 
 			</p>
 			<?php if ($include_form_apparatus) { ?>
 			<fieldset>
-				<input type="hidden" name="nonce" value="<?php echo wp_create_nonce('updraftplus-credentialtest-nonce');?>">
+				<input type="hidden" name="nonce" value="<?php echo esc_attr(wp_create_nonce('updraftplus-credentialtest-nonce'));?>">
 				<input type="hidden" name="action" value="updraft_ajax">
 				<input type="hidden" name="subaction" value="s3_newuser">
 				<input type="hidden" id="updraft_s3newapiuser_instance_id" name="updraft_s3newapiuser_instance_id" value="" />
@@ -485,7 +485,7 @@ class UpdraftPlus_Addon_S3_Enhanced {
 			#updraft_s3newapiuser_form .updraft_s3newapiuser_textexplain { float:left; width:30px; position:relative; top:3px; }
 			#updraft_s3newapiuser_form #updraft_s3newapiuser_bucket { width: 280px; }
 		</style>
-		<div id="updraft-s3newapiuser-modal" style="display:none;" title="<?php _e('Create new IAM user and S3 bucket', 'updraftplus');?>">
+		<div id="updraft-s3newapiuser-modal" style="display:none;" title="<?php esc_attr_e('Create new IAM user and S3 bucket', 'updraftplus');?>">
 			<?php $this->s3_print_new_api_user_form(); ?>
 		</div>
 

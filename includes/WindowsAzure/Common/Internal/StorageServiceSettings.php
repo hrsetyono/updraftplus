@@ -183,7 +183,7 @@ class StorageServiceSettings extends ServiceSettings
                     return true;
                 } else {
                     throw new \RuntimeException(
-                        sprintf(Resources::INVALID_ACCOUNT_KEY_FORMAT, $key)
+                        sprintf(Resources::INVALID_ACCOUNT_KEY_FORMAT, $key) // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
                     );
                 }
             }

@@ -117,11 +117,41 @@ if (is_multisite()) {
 			return 'settings.php';
 		}
 
+		/**
+		 * Registers and removes the UpdraftPlus submenu, keeping it accessible via the main menu.
+		 *
+		 * The $admin_page_hooks variable is a global associative array in WordPress. It is used internally
+		 * by WordPress to keep track of the registered admin pages and their corresponding hooks. Whenever
+		 * developers add new admin pages using functions like add_menu_page() or add_submenu_page(),
+		 * WordPress automatically adds an entry in this array. The key in the array represents the page slug
+		 * (a unique identifier for each admin page), and the corresponding value is the hook assigned to that
+		 * page.
+		 *
+		 * Since we are using the current URL (settings.php?page=updraftplus) as the link for our plugin in
+		 * the main admin menu, we need to ensure the page is properly registered and accessible:
+		 *
+		 * 1. First, we register the submenu item using add_submenu_page(). This step is essential to
+		 *    register the function responsible for rendering the UpdraftPlus page. Without this, WordPress
+		 *    would not associate the page with a valid hook or rendering function, making it inaccessible.
+		 *
+		 * 2. After the submenu is registered, we immediately remove it with remove_submenu_page(). This
+		 *    prevents the UpdraftPlus page from appearing as a submenu under the Settings menu, avoiding
+		 *    clutter and keeping the admin interface clean.
+		 *
+		 * By registering the submenu and then removing it, the page remains accessible through the main
+		 * menu link (settings.php?page=updraftplus), while avoiding redundant links in the Settings submenu.
+		 *
+		 * In a multisite setup, if the WP_ALLOW_MULTISITE constant is not defined or set to false, the
+		 * Settings main menu may not have any submenus. This results in the global $submenu array for the
+		 * Settings page being empty, which can cause issues with the user_can_access_admin_page() function.
+		 * Specifically, this happens because the get_admin_page_parent() function returns empty. To prevent
+		 * this, we unset $admin_page_hooks['settings.php'] to ensure users can still access the UpdraftPlus
+		 * page, which uses the current URL (settings.php?page=updraftplus) as its URL.
+		 */
 		public static function add_admin_pages() {
-			$capability = apply_filters('option_page_capability_updraft-options-group', 'manage_options');
-
 			if (!defined('UPDRAFTPLUS_DISABLE_TOP_LEVEL_MENU_ENTRY') || !UPDRAFTPLUS_DISABLE_TOP_LEVEL_MENU_ENTRY) {
 				if (is_super_admin() || apply_filters('updraft_user_can_manage', false, true)) {
+					$capability = apply_filters('option_page_capability_updraft-options-group', 'manage_options');
 					
 					// Add "UpdraftPlus" as the main menu item
 					add_menu_page(
@@ -132,18 +162,16 @@ if (is_multisite()) {
 						'', // Set the callback to empty string because it's unused
 						trailingslashit(UPDRAFTPLUS_URL).'images/dashicon-white.png'
 					);
+
+					global $admin_page_hooks, $title;
 	
-					global $title, $submenu;
-	
+					if (!defined('WP_ALLOW_MULTISITE') || !WP_ALLOW_MULTISITE) unset($admin_page_hooks['settings.php']);
+
 					if (isset($_GET['page']) && 'updraftplus' == $_GET['page']) $title = 'UpdraftPlus';
 					
 					UpdraftPlus_Options::add_submenu();
 
-					// Remove the submenu
-					foreach ($submenu['settings.php'] as $key => $item) {
-						if ('updraftplus' != $item[2]) continue;
-						unset($submenu['settings.php'][$key]);
-					}
+					remove_submenu_page('settings.php', 'updraftplus');
 				}
 			} else {
 				UpdraftPlus_Options::add_submenu();
@@ -208,7 +236,7 @@ if (is_multisite()) {
 				'updraft_migrator_localkeys' => array(),
 				'updraft_central_localkeys' => array(),
 
-				'updraft_autobackup_default' => 1,
+				'updraft_autobackup_default' => 0,
 				'updraft_delete_local' => 1,
 				'updraft_debug_mode' => 1,
 				'updraft_include_plugins' => 1,
@@ -266,8 +294,8 @@ if (is_multisite()) {
 
 			if (!$page) $page = '?page=updraftplus';
 
-			echo '<form method="post" action="'.$page.'"';
-			if ('' != $classes) echo ' class="'.$classes.'"';
+			echo '<form method="post" action="'.esc_url($page).'"';
+			if ('' != $classes) echo ' class="'.esc_attr($classes).'"';
 			if (!$allow_autocomplete) echo ' autocomplete="off"';
 			echo '>';
 		}
@@ -291,7 +319,7 @@ if (is_multisite()) {
 		 */
 		public static function options_printpage() {
 			if (!self::user_can_manage()) {
-				wp_die(__('You do not have sufficient permissions to access this page.'));
+				wp_die(esc_html__('You do not have sufficient permissions to access this page.'));
 			}
 
 			if (isset($_POST['action']) && 'update' == $_POST['action'] && isset($_POST['updraft_interval'])) {
@@ -305,7 +333,7 @@ if (is_multisite()) {
 
 		public static function mass_options_update($new_options) {
 
-			if (!self::user_can_manage()) wp_die(__('You do not have permission to access this page.'));
+			if (!self::user_can_manage()) wp_die(esc_html__('You do not have permission to access this page.'));
 
 			global $updraftplus, $updraftplus_admin;
 

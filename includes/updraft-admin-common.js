@@ -364,6 +364,7 @@ function updraft_remote_storage_test(method, result_callback, instance_id) {
 			result_callback = result_callback.call(this, response, status, data);
 		}
 		if ('undefined' !== typeof result_callback && false === result_callback) {
+			response.output = response.output.replaceAll('&quot;', '"');
 			alert(updraftlion.settings_test_result.replace('%s', method_label)+' '+response.output);
 			if (response.hasOwnProperty('data')) {
 				console.log(response.data);
@@ -3010,7 +3011,9 @@ jQuery(function($) {
 			operator_options: updraftlion.conditional_logic.operator_options,
 		};
 		var html = template(context);
-		jQuery(html).hide().insertAfter(jQuery('.' + method + '_add_instance_container').first()).show('slow');
+		jQuery(html).hide().insertAfter(jQuery('.' + method + '_add_instance_container').first()).show('slow', function() {
+			initialize_remote_storage_select2_elements(this);
+		});
 	}
 
 	/**
@@ -3520,7 +3523,7 @@ jQuery(function($) {
 									} else {
 										for (var i=0; i<which_to_download.length; i++) {
 											// updraft_downloader(base, backup_timestamp, what, whicharea, set_contents, prettydate, async)
-											updraft_downloader('udrestoredlstatus_', backup_timestamp, which_to_download[i][0], '#ud_downloadstatus2', which_to_download[i][1], pretty_date, false);
+											updraft_downloader('udrestoredlstatus_', backup_timestamp, which_to_download[i][0], '#ud_downloadstatus2', which_to_download[i][1], pretty_date, true);
 										}
 									}
 		
@@ -3641,7 +3644,7 @@ jQuery(function($) {
 					var restore_options = $('#updraft_restoreoptions_ui select, #updraft_restoreoptions_ui input').serialize();
 
 					// jQuery serialize does not pick up unchecked checkboxes, but we want to include these so that we have a list of table/plugins/themes the user does not want to restore we prepend these with udp-skip-{entity}- and check this on the backend
-					var entities = ['table', 'plugins', 'themes'];
+					var entities = ['tables', 'plugins', 'themes'];
 
 					jQuery.each(entities, function(i, entity) {
 						jQuery.each(jQuery('input[name="updraft_restore_' + entity + '_options[]').filter(function(idx) {
@@ -4400,8 +4403,8 @@ jQuery(function($) {
 	
 	function updraft_restore_setup(entities, key, show_data) {
 		updraft_restore_setoptions(entities);
-		jQuery('#updraft_restore_timestamp').val(key);
-		jQuery('.updraft_restore_date').html(show_data);
+		if (key.toString().match(/^[0-9]+$/i)) jQuery('#updraft_restore_timestamp').val(key);
+		jQuery('.updraft_restore_date').text(show_data);
 		
 		updraft_restore_stage = 1;
 		
@@ -4653,6 +4656,32 @@ jQuery(function($) {
 		e.preventDefault();
 		jQuery('#updraft_restore_continue_action').val('updraft_restore_abort');
 		jQuery(this).parent('form').trigger('submit');
+	});
+
+	jQuery('#cron_events.advanced_tools_button').on('click', function(e) {
+		e.preventDefault();
+
+		var $table_body = jQuery('.advanced_settings_content .advanced_tools.cron_events tbody');
+		$table_body.html('');
+
+		updraft_send_command('get_cron_events', 1, function (response) {
+			$.each(response, function(index, item) {
+				var first_column = '<td>';
+				if (item.overdue) first_column = '<td style="border-left:4px solid #DB6A03;">';
+
+				$table_body.append($('<tr>').append(
+					$(first_column).text(item.hook),
+					$('<td>').text(item.name)
+				));
+				if (item.overdue) {
+					$table_body.find('tr:last').append('<td><span></span><br><span class="dashicons dashicons-warning" aria-hidden="true" style="color:#DB6A03"></span> <span></span></td>');
+				} else {
+					$table_body.find('tr:last').append('<td><span></span><br><span></span></td>');
+				}
+				$table_body.find('tr:last td:last span').not('.dashicons').first().text(item.time);
+				$table_body.find('tr:last td:last span').last().text(item.interval);
+			});
+		});
 	});
 });
 
@@ -5188,6 +5217,7 @@ jQuery(function($) {
 			updraft_scroll_to_remote_storage_config();
 			// Displays warning to the user of their mistake if they try to enter a URL in the OneDrive settings and saved
 			$('#remote-storage-holder .updraftplus_onedrive_folder_input').trigger('keyup');
+			initialize_remote_storage_select2_elements(jQuery('#remote-storage-holder'));
 		});
 	}
 
@@ -6308,4 +6338,47 @@ function updraft_js_tree(remote_storage) {
 	  });
 	};
 
+}
+
+/**
+ * Initializes Select2 dynamic input for all <select> elements matching the given object of remote storage.
+ *
+ * @param {string} remote_storage_elements - An object of HTML elements of the remote storage template
+ * @returns {void}
+ */
+function initialize_remote_storage_select2_elements(remote_storage_elements) {
+	// <select> tag added to any remote storage configuration should have `select2` defined in its class attribute
+	var select_element = jQuery(remote_storage_elements).find('select.select2-storage-config');
+	for (var i=0; i < select_element.length; i++) {
+		// Initialize select2 text input.
+		jQuery(select_element[i]).select2({
+			tags: true
+		});
+		// any specific actions applied to remote storage should be implemented by first checking the remote storage ID
+		if ('dreamobjects' === jQuery(select_element[i]).data('storage-id')) {
+			if ('endpoint' === jQuery(select_element[i]).data('field-id')) {
+				jQuery(select_element[i]).on('change', function(e) {
+					validate_dreamobjects_endpoint(e.target);
+				});
+				validate_dreamobjects_endpoint(select_element[i]);
+			}
+		}
+	}
+}
+
+/**
+ * Validate selected DreamObjects endpoint.
+ *
+ * @param {HTMLSelectElement} select_element - The <select> element for DreamObjects endpoint.
+ *
+ * @returns {void}
+ */
+function validate_dreamobjects_endpoint(select_element) {
+	var endpoint = select_element.value.trim();
+	// Show or hide error message depending on endpoint validity.
+	if (updraftlion.dreamobject_endpoints.includes(endpoint) || new RegExp(updraftlion.dreamobject_endpoint_regex, 'i').test(endpoint)) {
+		select_element.classList.remove('updraft-input--invalid');
+	} else {
+		select_element.classList.add('updraft-input--invalid');
+	}
 }

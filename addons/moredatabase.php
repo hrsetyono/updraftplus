@@ -58,11 +58,11 @@ class UpdraftPlus_Addon_MoreDatabase {
 	 */
 	public function restore_form_db() {
 
-		echo '<div class="updraft_restore_crypteddb updraft-hidden">'.__('Database decryption phrase', 'updraftplus').': ';
+		echo '<div class="updraft_restore_crypteddb updraft-hidden">'.esc_html__('Database decryption phrase', 'updraftplus').': ';
 
 		$updraft_encryptionphrase = UpdraftPlus_Options::get_updraft_option('updraft_encryptionphrase');
 
-		echo '<input type="'.apply_filters('updraftplus_admin_secret_field_type', 'text').'" name="updraft_encryptionphrase" value="'.esc_attr($updraft_encryptionphrase).'"></div>';
+		echo '<input type="'.esc_attr(apply_filters('updraftplus_admin_secret_field_type', 'text')).'" name="updraft_encryptionphrase" value="'.esc_attr($updraft_encryptionphrase).'"></div>';
 	}
 
 	/**
@@ -261,8 +261,8 @@ class UpdraftPlus_Addon_MoreDatabase {
 						'<h3><?php echo esc_js(__('Backup external database', 'updraftplus'));?></h3>'+
 						'<div class="updraft_backupextradbs_testresultarea"></div>'+
 						'<div class="updraft_backupextradbs_row_label updraft_backupextradbs_row_host" title="<?php echo esc_attr(__('Enter host.', 'updraftplus'));?>"><?php echo esc_js(__('Host', 'updraftplus'));?>:</div><input class="updraft_backupextradbs_row_textinput extradb_host" title="<?php echo esc_attr(__('Enter host', 'updraftplus'));?>" type="text" name="updraft_extradbs['+updraft_extra_dbs+'][host]" value="'+host+'">'+
-						'<div class="updraft_backupextradbs_row_label" title="<?php echo esc_attr(__('Enter username.', 'updraftplus'));?>"><?php echo esc_js(__('Username', 'updraftplus'));?>:</div><input class="updraft_backupextradbs_row_textinput extradb_user" title="<?php echo esc_attr(__('Enter username', 'updraftplus'));?>"type="text" name="updraft_extradbs['+updraft_extra_dbs+'][user]" value="'+user+'">'+
-						'<div class="updraft_backupextradbs_row_label" title="<?php echo esc_attr(__('Enter password.', 'updraftplus'));?>"><?php echo esc_js(__('Password', 'updraftplus'));?>:</div><input class="updraft_backupextradbs_row_textinput extradb_pass" title="<?php echo esc_attr(__('Enter password', 'updraftplus'));?>"type="<?php echo apply_filters('updraftplus_admin_secret_field_type', 'text'); ?>" name="updraft_extradbs['+updraft_extra_dbs+'][pass]" value="'+pass+'">'+
+						'<div class="updraft_backupextradbs_row_label" title="<?php echo esc_attr(__('Enter username.', 'updraftplus'));?>"><?php echo esc_js(__('Username', 'updraftplus'));?>:</div><input class="updraft_backupextradbs_row_textinput extradb_user" title="<?php echo esc_attr(__('Enter username', 'updraftplus'));?>" type="text" name="updraft_extradbs['+updraft_extra_dbs+'][user]" value="'+user+'">'+
+						'<div class="updraft_backupextradbs_row_label" title="<?php echo esc_attr(__('Enter password.', 'updraftplus'));?>"><?php echo esc_js(__('Password', 'updraftplus'));?>:</div><input class="updraft_backupextradbs_row_textinput extradb_pass" title="<?php echo esc_attr(__('Enter password', 'updraftplus'));?>" type="<?php echo esc_attr(apply_filters('updraftplus_admin_secret_field_type', 'text')); ?>" name="updraft_extradbs['+updraft_extra_dbs+'][pass]" value="'+pass+'">'+
 						'<div class="updraft_backupextradbs_row_label" title="<?php echo esc_attr(__('Enter database.', 'updraftplus'));?>"><?php echo esc_js(__('Database', 'updraftplus'));?>:</div><input class="updraft_backupextradbs_row_textinput extradb_name" title="<?php echo esc_attr(__('Enter database', 'updraftplus'));?>" type="text" name="updraft_extradbs['+updraft_extra_dbs+'][name]" value="'+name+'">'+
 						'<div class="updraft_backupextradbs_row_label" title="<?php echo esc_attr(__('Enter table prefix', 'updraftplus')).'. '.esc_attr(__('If you enter a table prefix, then only tables that begin with this prefix will be backed up.', 'updraftplus'));?>"><?php echo esc_js(__('Table prefix', 'updraftplus'));?>:</div><input class="updraft_backupextradbs_row_textinput extradb_prefix" title="<?php echo esc_attr(__('Enter table prefix', 'updraftplus')).'. '.esc_attr('If you enter a table prefix, then only tables that begin with this prefix will be backed up.', 'updraftplus');?>" type="text" name="updraft_extradbs['+updraft_extra_dbs+'][prefix]" value="'+prefix+'">'+
 						'<div class="updraft_backupextradbs_row_label updraft_backupextradbs_row_test"><a href="<?php echo esc_url(UpdraftPlus::get_current_clean_url());?>" class="updraft_backupextradbs_row_testconnection"><?php echo esc_js(__('Test connection...', 'updraftplus'));?></a></div>'+
@@ -278,7 +278,7 @@ class UpdraftPlus_Addon_MoreDatabase {
 				$('#updraft_backupextradbs').on('click', '.updraft_backupextradbs_row_testconnection', function(e) {
 					e.preventDefault();
 					var row = $(this).parents('.updraft_backupextradbs_row');
-					$(row).find('.updraft_backupextradbs_testresultarea').html('<p><em><?php _e('Testing...', 'updraftplus');?></em></p>');
+					$(row).find('.updraft_backupextradbs_testresultarea').html('<p><em><?php echo esc_js(__('Testing...', 'updraftplus'));?></em></p>');
 					var data = {
 						subsubaction: 'updraft_extradb_testconnection',
 						row: $(row).attr('id'),

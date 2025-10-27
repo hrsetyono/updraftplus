@@ -79,6 +79,14 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 		if (defined('UPDRAFTPLUS_UPLOAD_CHUNKSIZE') && UPDRAFTPLUS_UPLOAD_CHUNKSIZE>0) $this->chunk_size = max(UPDRAFTPLUS_UPLOAD_CHUNKSIZE, 320*1024);
 	}
 	
+	/**
+	 * Upload a single file to OneDrive storage. If the file size is less than the OneDrive fragment size (320 KB), it will be uploaded in a single request to the OneDrive server. Otherwise, it will be uploaded in chunks by initiating an API request to get a working upload session and upload URL.
+	 *
+	 * @param String $file - the basename of the file to upload
+	 * @param String $from - the full path of the file
+	 *
+	 * @return Boolean - returns true on success or false on failure. An exception could be thrown if there is an error when accessing the OneDrive storage.
+	 */
 	public function do_upload($file, $from) {
 
 		global $updraftplus;
@@ -156,7 +164,7 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 		
 		// Ensure directory exists
 		$pointer = $this->get_pointer($folder, $storage);
-		if (is_wp_error($pointer)) throw new Exception($pointer->get_error_code());
+		if (is_wp_error($pointer)) throw new Exception($pointer->get_error_code());// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 
 		// Perhaps it already exists? (if we didn't get the final confirmation)
 		try {
@@ -212,12 +220,12 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 						$session = $possible_session;
 						
 						$state = $storage->getState();
-						$upload_status = $storage->apiGet($possible_session->uploadUrl, array());
+						$upload_status = $storage->apiGet($possible_session->uploadUrl, array(), false);
 
 						if (!is_object($upload_status) || empty($upload_status->nextExpectedRanges)) {
 							// One retry
 							$this->log("Failed to get upload status; making second attempt to request prior to re-starting");
-							$upload_status = $storage->apiGet($possible_session->uploadUrl, array());
+							$upload_status = $storage->apiGet($possible_session->uploadUrl, array(), false);
 						}
 						
 						if (is_object($upload_status) && !empty($upload_status->nextExpectedRanges)) {
@@ -334,6 +342,18 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 		return $opts;
 	}
 	
+	/**
+	 * Transmit a piece of file chunks identified by the given index number, file offset and file size. An active upload session and an upload URL acquired from the upload initiation process should be used.
+	 *
+	 * @param String   $file         Specific file to be used in chunked upload
+	 * @param Resource $fp           File handle
+	 * @param Integer  $chunk_index  The index of the chunked data
+	 * @param Integer  $upload_size  Size of the upload
+	 * @param Integer  $upload_start String the upload starts on
+	 * @param Integer  $upload_end   String the upload ends on
+	 *
+	 * @return Boolean|Integer return true or 1 if the chunked upload is a success, false otherwise. (N.B. 1 indicates that the chunked upload shouldn't be logged)
+	 */
 	public function chunked_upload($file, $fp, $chunk_index, $upload_size, $upload_start, $upload_end) {
 
 		// Already done?
@@ -404,7 +424,7 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 					fwrite($fp, $commit_body);
 					fseek($fp, 0);
 					
-					$commit = $storage->apiPut($put_url, $fp, null, strlen($commit_body), $commit_headers);
+					$commit = $storage->apiPut($put_url, $fp, null, strlen($commit_body), $commit_headers, false);
 				
 					if (is_object($commit) && (!empty($commit->expirationDateTime) || !empty($commit->id) || $commit === $empty_object)) {
 						$this->log('Trying to PUT probably-completed upload to OneDrive: success');
@@ -512,7 +532,7 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 		
 		$folder = $opts['folder'];
 		$pointer = $this->get_pointer($folder, $storage);
-		if (is_wp_error($pointer)) throw new Exception($pointer->get_error_code());
+		if (is_wp_error($pointer)) throw new Exception($pointer->get_error_code());// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 
 		$objs = $storage->fetchObjects($pointer);
 		foreach ($objs as $obj) {
@@ -622,7 +642,7 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 
 		if ($folder != $last_folder || empty($fetched_results)) {
 			$pointer = $this->get_pointer($folder, $storage);
-			if (is_wp_error($pointer)) throw new Exception($pointer->get_error_code());
+			if (is_wp_error($pointer)) throw new Exception($pointer->get_error_code());// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- prevent the string from being double-escaped; the escaping should occur when printed
 
 			$fetched_results = $storage->fetchObjects($pointer);
 			$last_folder = $folder;
@@ -1217,7 +1237,7 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 				<br>
 				{{/if}}
 				<p>
-					<a href="https://account.live.com/developers/applications/create" target="_blank">
+					<a href="https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank">
 						{{developer_console_link_text}}
 					</a>
 				</p>
@@ -1309,7 +1329,7 @@ class UpdraftPlus_Addons_RemoteStorage_onedrive extends UpdraftPlus_RemoteStorag
 		$properties = array(
 			'storage_image_url' => UPDRAFTPLUS_URL.'/images/onedrive.png',
 			'curl_existence_label' => wp_kses($updraftplus_admin->curl_check('OneDrive', true, 'onedrive hide-in-udc', false), $this->allowed_html_for_content_sanitisation()),
-			'privacy_policy' => wp_kses(sprintf(__('Please read %s for use of our %s authorization app (none of your backup data is sent to us).', 'updraftplus'), '<a target="_blank" href="https://updraftplus.com/faqs/what-is-your-privacy-policy-for-the-use-of-your-microsoft-onedrive-app/">'.__('this privacy policy', 'updraftplus').'</a>', 'OneDrive'), $this->allowed_html_for_content_sanitisation()),
+			'privacy_policy' => wp_kses(sprintf(__('Please read %s for use of our %s authorization app (none of your backup data is sent to us).', 'updraftplus'), '<a target="_blank" href="https://teamupdraft.com/documentation/updraftplus/topics/cloud-storage/dropbox/faqs/what-is-your-privacy-policy-for-the-use-of-your-dropbox-app?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=dropbox-privacy&utm_creative_format=text">'.__('this privacy policy', 'updraftplus').'</a>', 'OneDrive'), $this->allowed_html_for_content_sanitisation()),
 			'developer_console_link_text' => __('Create OneDrive credentials in your OneDrive developer console.', 'updraftplus'),
 			'setup_guide_link_text' => __('For more detailed instructions, follow this link.', 'updraftplus'),
 			'ip_host_label' => __('This site uses a URL which is either non-HTTPS, or is localhost or 127.0.0.1 URL.', 'updraftplus').' '.sprintf(__('As such, you must use the main %s %s App to authenticate with your account.', 'updraftplus'), 'UpdraftPlus', 'OneDrive'),

@@ -10,6 +10,7 @@ IncludePHP: methods/addon-base-v2.php
 RequiresPHP: 5.3.3
 */
 // @codingStandardsIgnoreEnd
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error messages should be escaped when caught and printed.
 
 if (!defined('UPDRAFTPLUS_DIR')) die('No direct access allowed');
 
@@ -82,7 +83,7 @@ class UpdraftPlus_Addons_RemoteStorage_backblaze extends UpdraftPlus_RemoteStora
 		$file_hash = md5($file);
 		$this->_uploaded_size = $this->jobdata_get('total_bytes_sent_'.$file_hash, 0);
 		
-		if (!file_exists($local_path) || !is_readable($local_path)) throw new Exception("Could not read file: $local_path");
+		if (!file_exists($local_path) || !is_readable($local_path)) throw new Exception('Could not read file: '.$local_path);
 		
 		// Backblaze bucket names are case insensitive
 		$bucket_name = strtolower($opts['bucket_name']);
@@ -555,7 +556,7 @@ class UpdraftPlus_Addons_RemoteStorage_backblaze extends UpdraftPlus_RemoteStora
 		
 		try {
 			if (!$this->is_valid_bucket_name($bucket_name)) {
-				echo __('Invalid bucket name', 'updraftplus')."\n";
+				echo esc_html(__('Invalid bucket name', 'updraftplus'))."\n";
 			} else {
 				$buckets = $this->get_bucket_names_array();
 				$new_bucket_created = false;
@@ -577,11 +578,11 @@ class UpdraftPlus_Addons_RemoteStorage_backblaze extends UpdraftPlus_RemoteStora
 						$result = true;
 					}
 				} elseif (!$new_bucket_created) {
-					echo __('Failure: We could not successfully access or create such a bucket', 'updraftplus').' '.sprintf(__('Please check your access credentials, and if those are correct then try another bucket name (as another %s user may already have taken your name).', 'updraftplus'), 'Backblaze');
+					echo esc_html(__('Failure: We could not successfully access or create such a bucket', 'updraftplus').' '.sprintf(__('Please check your access credentials, and if those are correct then try another bucket name (as another %s user may already have taken your name).', 'updraftplus'), 'Backblaze'));
 				}
 			}
 		} catch (Exception $e) {
-			echo get_class($e).': '.$e->getMessage().' ('.$e->getCode().', '.get_class($e).') (line: '.$e->getLine().', file: '.$e->getFile().")\n";
+			echo esc_html(get_class($e).': '.$e->getMessage().' ('.$e->getCode().', '.get_class($e).') (line: '.$e->getLine().', file: '.$e->getFile()).")\n";
 		}
 
 		return array('result' => $result, 'data' => $data);
@@ -608,7 +609,7 @@ class UpdraftPlus_Addons_RemoteStorage_backblaze extends UpdraftPlus_RemoteStora
 			));
 
 		} catch (Exception $e) {
-			echo __('Delete failed:', 'updraftplus').' '.$e->getMessage().' ('.$e->getCode().', '.get_class($e).') (line: '.$e->getLine().', file: '.$e->getFile().')';
+			echo esc_html(__('Delete failed:', 'updraftplus').' '.$e->getMessage().' ('.$e->getCode().', '.get_class($e).') (line: '.$e->getLine().', file: '.$e->getFile().')');
 		}
 	}
 
@@ -704,7 +705,7 @@ class UpdraftPlus_Addons_RemoteStorage_backblaze extends UpdraftPlus_RemoteStora
 			<td colspan="2">
 				<img width="434" src="{{storage_image_url}}"><br>
 				{{{curl_existence_label}}}
-				<p><a href="https://updraftplus.com/support/configuring-backblaze-cloud-storage-access-in-updraftplus/" target="_blank"><strong>{{configuration_helper_link_text}}</strong></a></p>
+				<p><a href="https://teamupdraft.com/documentation/updraftplus/topics/cloud-storage/backblaze/faqs/how-to-configure-backblaze-cloud-storage-access-in-updraftplus/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=configure-backblaze&utm_creative_format=text" target="_blank"><strong>{{configuration_helper_link_text}}</strong></a></p>
 			</td>
 		</tr>
 

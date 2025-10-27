@@ -59,17 +59,18 @@ class UpdraftPlus_Addon_MoreStorage {
 	 */
 	public function config_print_before_storage($storage, $storage_object = null) {
 		global $updraftplus;
+		$tr_class = is_object($storage_object) ? $storage_object->get_css_classes() . ' ' . $storage . '_updraft_remote_storage_border' : "updraftplusmethod ".$storage;
 		?>
-		<tr class="<?php echo is_object($storage_object) ? $storage_object->get_css_classes() . ' ' . $storage . '_updraft_remote_storage_border' : "updraftplusmethod $storage";?>">
+		<tr class="<?php echo esc_attr($tr_class); ?>">
 			<th>
 				<?php
 					if (is_object($storage_object) && $storage_object->supports_feature('multi_storage')) {
 					?>
-						<h3 class="updraft_edit_label_instance" data-instance_id="{{instance_id}}" data-method="<?php echo $storage; ?>">{{instance_label}}<span class="dashicons dashicons-edit"></span></h3>
+						<h3 class="updraft_edit_label_instance" data-instance_id="{{instance_id}}" data-method="<?php echo esc_attr($storage); ?>">{{instance_label}}<span class="dashicons dashicons-edit"></span></h3>
 					<?php
 					} else {
 					?>
-						<h3><?php echo $updraftplus->backup_methods[$storage]; ?></h3>
+						<h3><?php echo esc_html($updraftplus->backup_methods[$storage]); ?></h3>
 					<?php
 					}
 					?>
@@ -79,10 +80,10 @@ class UpdraftPlus_Addon_MoreStorage {
 					if (is_object($storage_object) && $storage_object->supports_feature('multi_storage')) {
 						?>
 						<div class="updraft_multi_storage_options">
-							<input type="checkbox" class="updraft_instance_toggle" id="<?php echo 'updraft_' . $storage . '_instance_enabled' . '_{{instance_id}}';?>" name="<?php echo 'updraft_' . $storage . '[settings][{{instance_id}}][instance_enabled]';?>" value="1" {{#ifeq "1" instance_enabled}} checked="checked"{{/ifeq}}>
-							<label for="<?php echo 'updraft_' . $storage . '_instance_enabled' . '_{{instance_id}}';?>" class="updraft_toggle_instance_label">{{#ifeq "1" instance_enabled}}<?php echo __('Currently enabled', 'updraftplus'); ?>{{else}} <?php echo __('Currently disabled', 'updraftplus'); ?>{{/ifeq}}</label>
+							<input type="checkbox" class="updraft_instance_toggle" id="<?php echo esc_attr('updraft_' . $storage . '_instance_enabled' . '_{{instance_id}}');?>" name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{instance_id}}][instance_enabled]');?>" value="1" {{#ifeq "1" instance_enabled}} checked="checked"{{/ifeq}}>
+							<label for="<?php echo esc_attr('updraft_' . $storage . '_instance_enabled' . '_{{instance_id}}');?>" class="updraft_toggle_instance_label">{{#ifeq "1" instance_enabled}}<?php esc_html_e('Currently enabled', 'updraftplus'); ?>{{else}} <?php esc_html_e('Currently disabled', 'updraftplus'); ?>{{/ifeq}}</label>
 						</div>
-						<a href="<?php echo esc_url(UpdraftPlus::get_current_clean_url());?>" class="updraft_multi_storage_options updraft_delete_instance" data-instance_id="{{instance_id}}" data-method="<?php echo $storage; ?>"><?php echo __('Delete these settings', 'updraftplus'); ?></a>
+						<a href="<?php echo esc_url(UpdraftPlus::get_current_clean_url());?>" class="updraft_multi_storage_options updraft_delete_instance" data-instance_id="{{instance_id}}" data-method="<?php echo esc_attr($storage); ?>"><?php esc_html_e('Delete these settings', 'updraftplus'); ?></a>
 						<?php
 					}
 				?>
@@ -100,33 +101,34 @@ class UpdraftPlus_Addon_MoreStorage {
 	 */
 	public function config_print_add_conditional_logic($storage, $storage_object = null) {
 		if (!$storage_object->supports_feature('conditional_logic')) return;
+		$tr_class = is_object($storage_object) ? $storage_object->get_css_classes() : "updraftplusmethod ".$storage;
 	?>
-		<tr class="<?php echo is_object($storage_object) ? $storage_object->get_css_classes() : "updraftplusmethod $storage";?> conditional_logic_row">
-			<th><?php _e('Send scheduled backups to this destination:', 'updraftplus'); ?></th>
+		<tr class="<?php echo esc_attr($tr_class);?> conditional_logic_row">
+			<th><?php esc_html_e('Send scheduled backups to this destination:', 'updraftplus'); ?></th>
 			<td>
 			{{#with instance_conditional_logic as | logic |}}
 				<div class="conditional_remote_backup">
-					<select class="logic_type" name="<?php echo 'updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][type]';?>">
+					<select class="logic_type" name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][type]');?>">
 						{{#each logic.logic_options}}
 						<option value="{{this.value}}"{{#ifCond this.value "==" logic.type}} selected{{/ifCond}}>{{this.label}}</option>
 						{{/each}}
 					</select>
 					<div class="logic"{{#ifCond "undefined" "typeof" logic.rules}} style="display: none"{{else}}{{#ifeq "0" (get_length logic.rules)}} style="display: none"{{/ifeq}}{{/ifCond}}>
-						<ul class="rules" data-storage="<?php echo $storage; ?>" data-instance_id="{{@root.instance_id}}" data-rules="{{#ifCond "0" "<" (get_length logic.rules)}}{{get_length logic.rules}}{{else}}1{{/ifCond}}">
+						<ul class="rules" data-storage="<?php echo esc_attr($storage); ?>" data-instance_id="{{@root.instance_id}}" data-rules="{{#ifCond "0" "<" (get_length logic.rules)}}{{get_length logic.rules}}{{else}}1{{/ifCond}}">
 							{{#ifCond "0" "<" (get_length logic.rules)}}
 								{{#each logic.rules as | rule |}}
 									<li>
-										<select class="conditional_logic_operand" name="<?php echo 'updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][{{@index}}][operand]';?>">
+										<select class="conditional_logic_operand" name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][{{@index}}][operand]');?>">
 										{{#each logic.operand_options}}
 											<option value="{{this.value}}"{{#ifCond this.value "==" rule.operand}} selected{{/ifCond}}>{{this.label}}</option>
 										{{/each}}
 										</select>
-										<select name="<?php echo 'updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][{{@index}}][operator]';?>">
+										<select name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][{{@index}}][operator]');?>">
 										{{#each logic.operator_options}}
 											<option value="{{this.value}}"{{#ifCond this.value "==" rule.operator}} selected{{/ifCond}}>{{this.label}}</option>
 										{{/each}}
 										</select>
-										<select name="<?php echo 'updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][{{@index}}][value]';?>">
+										<select name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][{{@index}}][value]');?>">
 										{{#ifCond "day_of_the_month" "==" rule.operand}}
 											{{#for 1 31 1}}<option value="{{this}}"{{#ifCond this "==" rule.value}} selected{{/ifCond}}>{{this}}</option>{{/for}}
 										{{/ifCond}}
@@ -149,18 +151,18 @@ class UpdraftPlus_Addon_MoreStorage {
 								{{/each}}
 							{{else}}
 							<li>
-								<select class="conditional_logic_operand" name="<?php echo 'updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][0][operand]';?>" disabled>
+								<select class="conditional_logic_operand" name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][0][operand]');?>" disabled>
 								{{#each logic.operand_options}}
 									{{#ifeq @index 0}}{{#set_var 'selected_rule_operand' this.value}}{{/set_var}}{{/ifeq}}
 									<option value="{{this.value}}">{{this.label}}</option>
 								{{/each}}
 								</select>
-								<select name="<?php echo 'updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][0][operator]';?>" disabled>
+								<select name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][0][operator]');?>" disabled>
 								{{#each logic.operator_options}}
 									<option value="{{this.value}}">{{this.label}}</option>
 								{{/each}}
 								</select>
-								<select name="<?php echo 'updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][0][value]';?>" disabled>
+								<select name="<?php echo esc_attr('updraft_' . $storage . '[settings][{{@root.instance_id}}][instance_conditional_logic][rules][0][value]');?>" disabled>
 								{{#ifCond @root.selected_rule_operand "===" "day_of_the_week"}}
 									{{#each logic.day_of_the_week_options}}
 										<option value="{{this.index}}"{{#ifCond this.index "==" rule.value}} selected{{/ifCond}}>{{this.value}}</option>
@@ -191,10 +193,10 @@ class UpdraftPlus_Addon_MoreStorage {
 	 */
 	public function config_print_add_multi_storage($storage, $storage_object = null) {
 		global $updraftplus;
-		?><tr class="<?php echo is_object($storage_object) ? $storage_object->get_css_classes(false) . " " . "$storage" . "_add_instance_container" : "updraftplusmethod $storage";?>">
-			
+		$tr_class = is_object($storage_object) ? $storage_object->get_css_classes(false) . " " . $storage . "_add_instance_container" : "updraftplusmethod ".$storage;
+		?><tr class="<?php echo esc_attr($tr_class);?>">			
 			<td colspan="2">
-				<a href="<?php echo esc_url(UpdraftPlus::get_current_clean_url()); ?>" class="updraft_add_instance" data-method="<?php echo $storage; ?>"><?php echo sprintf(__('Add another %s account...', 'updraftplus'), $updraftplus->backup_methods[$storage]); ?></a>
+				<a href="<?php echo esc_url(UpdraftPlus::get_current_clean_url()); ?>" class="updraft_add_instance" data-method="<?php echo esc_attr($storage); ?>"><?php echo esc_html(sprintf(__('Add another %s account...', 'updraftplus'), $updraftplus->backup_methods[$storage])); ?></a>
 			</td>
 		</tr>
 		<?php
@@ -208,8 +210,10 @@ class UpdraftPlus_Addon_MoreStorage {
 	 * @return String                 - the HTML template
 	 */
 	public function config_print_add_instance_label($storage, $storage_object) {
+		$input_class = is_object($storage_object) ? $storage_object->get_css_classes() : "updraftplusmethod ".$storage;
+		$input_name_id_attr = is_object($storage_object) ? $storage_object->output_settings_field_name_and_id('instance_label', true) . ' ' . $storage . '_updraft_instance_label' : '';
 		?>
-			<input type="hidden" class="<?php echo is_object($storage_object) ? $storage_object->get_css_classes() : "updraftplusmethod $storage";?>" <?php is_object($storage_object) ? $storage_object->output_settings_field_name_and_id('instance_label') . ' ' . $storage . '_updraft_instance_label' : ''; ?> value="{{instance_label}}" />
+			<input type="hidden" class="<?php echo esc_attr($input_class);?>" <?php echo wp_kses($input_name_id_attr, array()); ?> value="{{instance_label}}" />
 		<?php
 	}
 
@@ -228,20 +232,16 @@ class UpdraftPlus_Addon_MoreStorage {
 		?>
 		</div></td></tr>
 		<tr>
-			<th colspan="2"><h2 class="updraft_settings_sectionheading"><?php _e('Remote Storage Options', 'updraftplus');?></h2>
+			<th colspan="2"><h2 class="updraft_settings_sectionheading"><?php esc_html_e('Remote Storage Options', 'updraftplus');?></h2>
 		</tr>
 		<tr id="remote_storage_tabs" style="border-bottom: 1px solid #ccc">
 			<td colspan="2" style="padding:0px">
 				<?php
 					foreach ($updraftplus->backup_methods as $method => $description) {
-					echo "<a class=\"updraftplus-nav-tab remote-tab updraft-hidden remote-tab-$method\" id=\"remote-tab-$method\" name=\"$method\" href=\"#\" ";
-					// if ((!is_array($active_service) && $active_service !== $method) || !(is_array($active_service) && in_array($method, $active_service))) echo 'style="display:none;"';
-					echo 'style="display:none;"';
-					echo ">".htmlspecialchars($description)."</a>\n";
-					}
 				?>
-		
-		<?php
+					<a class="<?php echo esc_attr('updraftplus-nav-tab remote-tab updraft-hidden remote-tab-'.$method); ?>" id="<?php echo esc_attr('remote-tab-'.$method); ?>" name="<?php echo esc_attr($method); ?>" href="#" style="display:none"><?php echo esc_html($description);?></a>
+				<?php
+					}
 		return true;
 
 	}

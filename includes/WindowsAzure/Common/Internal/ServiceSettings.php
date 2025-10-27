@@ -60,7 +60,7 @@ abstract class ServiceSettings
     protected static function noMatch($connectionString)
     {
         throw new \RuntimeException(
-            sprintf(Resources::MISSING_CONNECTION_STRING_SETTINGS, $connectionString)
+            sprintf(Resources::MISSING_CONNECTION_STRING_SETTINGS, $connectionString) // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
         );
     }
     
@@ -90,13 +90,7 @@ abstract class ServiceSettings
         // Assure that all given keys are valid.
         foreach ($tokenizedSettings as $key => $value) {
             if (!Utilities::inArrayInsensitive($key, static::$validSettingKeys) ) {
-                throw new \RuntimeException(
-                    sprintf(
-                        Resources::INVALID_CONNECTION_STRING_SETTING_KEY,
-                        $key,
-                        implode("\n", static::$validSettingKeys)
-                    )
-                );
+                throw new \RuntimeException(sprintf(Resources::INVALID_CONNECTION_STRING_SETTING_KEY, $key, implode("\n", static::$validSettingKeys))); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
             }
         }
         
@@ -238,14 +232,7 @@ abstract class ServiceSettings
                 }
             }
             
-            throw new \RuntimeException(
-                sprintf(
-                    Resources::INVALID_CONFIG_VALUE,
-                    $settingValue,
-                    implode("\n", $validValues)
-                )
-            );
-            
+            throw new \RuntimeException(sprintf(Resources::INVALID_CONFIG_VALUE, $settingValue, implode("\n", $validValues))); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
             // $settingValue is missing in valid values set, fail.
             return false;
         };

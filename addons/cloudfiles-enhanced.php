@@ -33,6 +33,7 @@ class UpdraftPlus_Addon_CloudFilesEnhanced {
 		add_action('updraftplus_settings_page_init', array($this, 'updraftplus_settings_page_init'));
 		add_action('updraft_cloudfiles_newuser', array($this, 'newuser'));
 		add_filter('updraft_cloudfiles_apikeysetting', array($this, 'apikeysettings'));
+		add_filter('updraft_cloudfiles_template_properties', array($this, 'partial_template_properties'));
 	}
 	
 	/**
@@ -58,14 +59,30 @@ class UpdraftPlus_Addon_CloudFilesEnhanced {
 	}
 	
 	/**
-	 * Replace addon anchor link to create new API user
+	 * Compose partial template that deals with apikeysettings
 	 *
-	 * @param string $msg cloudfiles-enhanced:Rackspace Cloud Files addon anchor link
-	 * @return string anchor link html for creating new API user
+	 * @param String $msg A filterable partial templates
+	 * @return String the partial template, ready for substitutions to be carried out
 	 */
 	public function apikeysettings($msg) {
-		$msg = '<a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'" id="updraft_cloudfiles_newapiuser_{{instance_id}}" class="updraft_cloudfiles_newapiuser" data-instance_id="{{instance_id}}">'.__('Create a new API user with access to only this container (rather than your whole account)', 'updraftplus').'</a>';
+		ob_start();
+		?>
+		<a href="{{updraftplus_current_clean_url}}" target="_blank" id="dw{{instance_id}}" class="updraft_cloudfiles_newapiuser" data-instance_id="{{instance_id}}"><em>{{api_key_setting_premium_label}}</em></a>
+		<?php
+		$msg = ob_get_clean();
 		return $msg;
+	}
+
+	/**
+	 * This method is hooked to a filter and going to be accessed by any code within WordPress environment, so instead of sanitising each value in this method and/or using any other technique to prevent XSS attacks, just make sure each partial template has all variables escaped
+	 *
+	 * @return Array an associative array keyed by names that describe themselves as they are
+	 */
+	public function partial_template_properties() {
+		return array(
+			'api_key_setting_premium_label' => __('Create a new API user with access to only this container (rather than your whole account)', 'updraftplus'),
+			'updraftplus_current_clean_url' => UpdraftPlus::get_current_clean_url(),
+		);
 	}
 	
 	/**
@@ -177,7 +194,11 @@ class UpdraftPlus_Addon_CloudFilesEnhanced {
 		
 		// Add the user to the container
 		try {
-			$headers = array('X-Container-Write' => $user, 'X-Container-Read' => $user);
+			// The 'X-Container-Write' and 'X-Container-Read' headers always override the previous ACL configurations on the existing container. We need to also include the other users who already have access to this container to ensure we don't remove their access.
+			$container_metadata = $container_object->getMetadata();
+			$container_read_users = (null !== $container_metadata->getProperty('read') && '' != $container_metadata->getProperty('read')) ? $container_metadata->getProperty('read') . ',' . $user : $user;
+			$container_write_users = (null !== $container_metadata->getProperty('write') && '' != $container_metadata->getProperty('write')) ? $container_metadata->getProperty('write') . ',' . $user : $user;
+			$headers = array('X-Container-Write' => $container_write_users, 'X-Container-Read' => $container_read_users);
 			$container_object->getClient()->post($container_object->getUrl(), $headers)->send();
 		} catch (Exception $e) {
 			return array('e' => 1, 'm' => sprintf(__('Cloud Files operation failed (%s)', 'updraftplus'), 1).' ('.$e->getMessage().') ('.get_class($e).')');
@@ -250,7 +271,7 @@ class UpdraftPlus_Addon_CloudFilesEnhanced {
 		
 		$selaccount = 'us';
 		foreach ($this->accounts as $acc => $desc) {
-			?><option <?php if ($selaccount == $acc) echo 'selected="selected"'; ?> value="<?php echo $acc;?>"><?php echo htmlspecialchars($desc); ?></option><?php
+			?><option <?php if ($selaccount == $acc) echo 'selected="selected"'; ?> value="<?php echo esc_attr($acc); ?>"><?php echo esc_html($desc); ?></option><?php
 		};
 	}
 	
@@ -263,17 +284,17 @@ class UpdraftPlus_Addon_CloudFilesEnhanced {
 		$selregion = 'DFW';
 		foreach ($this->regions as $reg => $desc) {
 			?>
-			<option <?php if ($selregion == $reg) echo 'selected="selected"'; ?> value="<?php echo $reg;?>"><?php echo htmlspecialchars($desc); ?></option>
+			<option <?php if ($selregion == $reg) echo 'selected="selected"'; ?> value="<?php echo esc_attr($reg); ?>"><?php echo esc_html($desc); ?></option>
 			<?php
 		};
 	}
 	
 	public function modal_html() {
 		?>
-		<div id="updraft-cfnewapiuser-modal" title="<?php _e('Create new API user and container', 'updraftplus');?>" style="display:none;">
+		<div id="updraft-cfnewapiuser-modal" title="<?php esc_attr_e('Create new API user and container', 'updraftplus');?>" style="display:none;">
 			<div id="updraft_cfnewapiuser_form">
 				<p style="margin:1px; padding-top:0; clear: left; float: left;">
-				<em><?php _e('Enter your Rackspace admin username/API key (so that Rackspace can authenticate your permission to create new users), and enter a new (unique) username and email address for the new user and a container name.', 'updraftplus');?></em>
+				<em><?php esc_html_e('Enter your Rackspace admin username/API key (so that Rackspace can authenticate your permission to create new users), and enter a new (unique) username and email address for the new user and a container name.', 'updraftplus');?></em>
 				</p>
 				<div id="updraft-cfnewapiuser-results" style="clear: left; float: left;">
 					<p></p>
@@ -281,32 +302,32 @@ class UpdraftPlus_Addon_CloudFilesEnhanced {
 
 				<p style="margin-top:3px; padding-top:0; clear: left; float: left;">
 
-					<label for="updraft_cfnewapiuser_accountlocation"><?php _e('US or UK Rackspace Account', 'updraftplus');?></label>
-					<select title="<?php _e('Accounts created at rackspacecloud.com are US accounts; accounts created at rackspace.co.uk are UK accounts.', 'updraftplus');?>" id="updraft_cfnewapiuser_accountlocation">
+					<label for="updraft_cfnewapiuser_accountlocation"><?php esc_html_e('US or UK Rackspace Account', 'updraftplus');?></label>
+					<select title="<?php esc_attr_e('Accounts created at rackspacecloud.com are US accounts; accounts created at rackspace.co.uk are UK accounts.', 'updraftplus');?>" id="updraft_cfnewapiuser_accountlocation">
 						<?php $this->get_account_options();?>
 					</select>
 
-					<label for="updraft_cfnewapiuser_adminusername"><?php _e('Admin Username', 'updraftplus');?></label>
+					<label for="updraft_cfnewapiuser_adminusername"><?php esc_html_e('Admin Username', 'updraftplus');?></label>
 					<input type="text" id="updraft_cfnewapiuser_adminusername" value="">
 					
-					<label for="updraft_cfnewapiuser_adminapikey"><?php _e('Admin API Key', 'updraftplus');?></label>
+					<label for="updraft_cfnewapiuser_adminapikey"><?php esc_html_e('Admin API Key', 'updraftplus');?></label>
 					<input type="text" id="updraft_cfnewapiuser_adminapikey" value="">
 					
-					<label for="updraft_cfnewapiuser_newuser"><?php _e("New User's Username", 'updraftplus');?></label>
+					<label for="updraft_cfnewapiuser_newuser"><?php esc_html_e("New User's Username", 'updraftplus');?></label>
 					<input type="text" id="updraft_cfnewapiuser_newuser" value="">
 					
-					<label for="updraft_cfnewapiuser_newemail"><?php _e("New User's Email Address", 'updraftplus');?></label>
+					<label for="updraft_cfnewapiuser_newemail"><?php esc_html_e("New User's Email Address", 'updraftplus');?></label>
 					<input type="text" id="updraft_cfnewapiuser_newemail" value="">
 
-					<label for="updraft_cfnewapiuser_region"><?php _e('Cloud Files Storage Region', 'updraftplus');?>:</label>
+					<label for="updraft_cfnewapiuser_region"><?php esc_html_e('Cloud Files Storage Region', 'updraftplus');?>:</label>
 					<select id="updraft_cfnewapiuser_region">
 						<?php $this->get_region_options();?>
 					</select>
-					<label for="updraft_cfnewapiuser_container"><?php _e("Cloud Files Container", 'updraftplus');?></label> <input type="text" id="updraft_cfnewapiuser_container" value="">
+					<label for="updraft_cfnewapiuser_container"><?php esc_html_e("Cloud Files Container", 'updraftplus');?></label> <input type="text" id="updraft_cfnewapiuser_container" value="">
 					
 				</p>
 				<fieldset>
-					<input type="hidden" name="nonce" value="<?php echo wp_create_nonce('updraftplus-credentialtest-nonce');?>">
+					<input type="hidden" name="nonce" value="<?php echo esc_attr(wp_create_nonce('updraftplus-credentialtest-nonce')); ?>">
 					<input type="hidden" name="action" value="updraft_ajax">
 					<input type="hidden" name="subaction" value="cloudfiles_newuser">
 					<input type="hidden" id="updraft_cfnewapiuser_instance_id" name="updraft_cfnewapiuser_instance_id" value="" />
@@ -375,7 +396,7 @@ class UpdraftPlus_Addon_CloudFilesEnhanced {
 						jQuery('#updraft_cloudfiles_authurl_'+instance_id).val(resp.a);
 						jQuery('#updraft_cloudfiles_region_'+instance_id).val(resp.r);
 						jQuery('#updraft_cloudfiles_path_'+instance_id).val(resp.c);
-						jQuery('#updraft_cloudfiles_newapiuser_'+instance_id).after('<p><strong>'+updraftlion.newuserpass+'</strong> '+resp.p+'<p>');
+						jQuery('#dw'+instance_id).after('<p><strong>'+updraftlion.newuserpass+'</strong> '+resp.p+'<p>');
 						jQuery('#updraft-cfnewapiuser-modal').dialog('close');
 					}
 				}, { error_callback: function(response, status, error_code, resp) {

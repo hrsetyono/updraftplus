@@ -22,6 +22,20 @@ class UpdraftPlus_Addon_LockAdmin {
 	private $default_support_url = 'https://updraftplus.com/faqs/locked-updraftplus-settings-page-forgotten-password-unlock/';
 
 	/**
+	 * Password set by user for locking UpdraftPlus settings page.
+	 *
+	 * @var string
+	 */
+	private $old_password = '';
+
+	/**
+	 * Length of $this->opts['password'].
+	 *
+	 * @var int
+	 */
+	private $password_length = 0;
+
+	/**
 	 * Stores password, session and other data
 	 *
 	 * @var Array
@@ -160,22 +174,22 @@ class UpdraftPlus_Addon_LockAdmin {
 		?>
 		<div class="advanced_tools lock_admin">
 			<h3>
-				<?php _e('Lock access to the UpdraftPlus settings page', 'updraftplus'); ?>
+				<?php esc_html_e('Lock access to the UpdraftPlus settings page', 'updraftplus'); ?>
 			</h3>
 			<p>
-				<a href="https://updraftplus.com/lock-updraftplus-settings/" target="_blank">
-					<em><?php _e('Read more about how this works...', 'updraftplus');?></em>
+				<a href="https://teamupdraft.com/documentation/updraftplus/premium-features/how-to-lock-updraftplus-settings/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=read-about-lock-settings&utm_creative_format=tex" target="_blank">
+					<em><?php esc_html_e('Read more about how this works...', 'updraftplus');?></em>
 				</a>
 			</p>
 			<form id="lock_form" method="post" onsubmit="if (jQuery('#updraft_unlockadmin_password').val() != '') { return(confirm('<?php echo esc_js(__('Please make sure that you have made a note of the password!', 'updraftplus'));?>')); } else { return true; }">
-				<input type="hidden" name="nonce" value="<?php echo wp_create_nonce('updraftplus-unlockadmin-nonce');?>">
+				<input type="hidden" name="nonce" value="<?php echo esc_attr(wp_create_nonce('updraftplus-unlockadmin-nonce'));?>">
 				<input type="hidden" name="page" value="updraftplus">
 				<input type="hidden" name="tab" value="expert">
 				<input id="updraft_unlockadmin_oldpassword" type="hidden" name="updraft_unlockadmin_oldpassword" value="<?php echo esc_attr($this->opts['password']);?>">
 				<table>
 				<?php
 
-					echo $updraftplus_admin->settings_debugrow('<label for="updraft_unlockadmin_password">'.__('Password', 'updraftplus').'</label>:', '<input type="text" id="updraft_unlockadmin_password" name="updraft_unlockadmin_password" value="'.esc_attr($this->opts['password']).'" style="width:230px;">');
+					$updraftplus_admin->settings_debugrow('<label for="updraft_unlockadmin_password">'.esc_html__('Password', 'updraftplus').'</label>:', '<input type="text" id="updraft_unlockadmin_password" name="updraft_unlockadmin_password" value="'.esc_attr($this->opts['password']).'" style="width:230px;">');
 
 					$session_lengths = array(
 						'3600' => __('1 hour', 'updraftplus'),
@@ -191,11 +205,11 @@ class UpdraftPlus_Addon_LockAdmin {
 					$session_options .= "<option value=\"$length\"".(($this->opts['session_length'] == $length) ? ' selected="selected"' : '').">".htmlspecialchars($text)."</option>\n";
 					}
 
-					echo $updraftplus_admin->settings_debugrow('<label for="updraft_unlockadmin_session_length">'.__('Require password again after', 'updraftplus').'</label>:', '<select id="updraft_unlockadmin_session_length" name="updraft_unlockadmin_session_length" style="width:230px;">'.$session_options.'</select>');
+					$updraftplus_admin->settings_debugrow('<label for="updraft_unlockadmin_session_length">'.esc_html__('Require password again after', 'updraftplus').'</label>:', '<select id="updraft_unlockadmin_session_length" name="updraft_unlockadmin_session_length" style="width:230px;">'.$session_options.'</select>');
 
-					echo $updraftplus_admin->settings_debugrow('<label for="updraft_unlockadmin_support_url">'.__('Support URL', 'updraftplus').'</label>:', '<input id="updraft_unlockadmin_support_url" name="updraft_unlockadmin_support_url" type="'.apply_filters('updraftplus_admin_secret_field_type', 'text').'" value="'.esc_attr($this->opts['support_url']).'" style="width:230px;"><br><em>'.__('Anyone seeing the lock screen will be shown this URL for support - enter a website address or an email address.', 'updraftplus').' <a target="_blank" href="'.$this->default_support_url.'">'.__('Otherwise, the default link will be shown.', 'updraftplus').'</a></em>');
+					$updraftplus_admin->settings_debugrow('<label for="updraft_unlockadmin_support_url">'.esc_html__('Support URL', 'updraftplus').'</label>:', '<input id="updraft_unlockadmin_support_url" name="updraft_unlockadmin_support_url" type="'.apply_filters('updraftplus_admin_secret_field_type', 'text').'" value="'.esc_attr($this->opts['support_url']).'" style="width:230px;"><br><em>'.esc_html__('Anyone seeing the lock screen will be shown this URL for support - enter a website address or an email address.', 'updraftplus').' <a target="_blank" href="'.$this->default_support_url.'">'.esc_html__('Otherwise, the default link will be shown.', 'updraftplus').'</a></em>');
 
-					echo $updraftplus_admin->settings_debugrow('', '<input class="button-primary change_lock_settings" type="submit" value="'.esc_attr(__('Change Lock Settings', 'updraftplus')).'">');
+					$updraftplus_admin->settings_debugrow('', '<input class="button-primary change_lock_settings" type="submit" value="'.esc_attr(__('Change Lock Settings', 'updraftplus')).'">');
 					?>
 				</table>
 			</form>
@@ -223,10 +237,10 @@ class UpdraftPlus_Addon_LockAdmin {
 		</style>
 		<div id="updraft-lock-area">
 			<p>
-				<img width="150" height="150" src="<?php echo UPDRAFTPLUS_URL;?>/images/padlock-150.png" alt="<?php echo esc_attr(__('Unlock', 'updraftplus'));?>">
+				<img width="150" height="150" src="<?php echo esc_url(UPDRAFTPLUS_URL);?>/images/padlock-150.png" alt="<?php echo esc_attr(__('Unlock', 'updraftplus'));?>">
 			</p>
 			<form method="post">
-			<input type="hidden" name="nonce" value="<?php echo wp_create_nonce('updraftplus-unlockadmin-nonce');?>">
+			<input type="hidden" name="nonce" value="<?php echo esc_attr(wp_create_nonce('updraftplus-unlockadmin-nonce'));?>">
 			<p>
 				<input type="password" size="16" name="updraft_unlockadmin_password" value="">
 				<input type="submit" value="<?php echo esc_attr(__('Unlock', 'updraftplus'));?>">
@@ -235,10 +249,10 @@ class UpdraftPlus_Addon_LockAdmin {
 			<p>
 				<?php
 					if (false === $this->correct_password_supplied) {
-					echo '<span style="color:red;">'.__('Password incorrect', 'updraftplus').'</span><br>';
+					echo '<span style="color:red;">'.esc_html__('Password incorrect', 'updraftplus').'</span><br>';
 					}
 				?>
-				<?php _e('To access the UpdraftPlus settings, please enter your unlock password', 'updraftplus'); ?><br>
+				<?php esc_attr_e('To access the UpdraftPlus settings, please enter your unlock password', 'updraftplus'); ?><br>
 				<span style="font-size:85%;"><em>
 					<?php
 						$this->get_opts();
@@ -247,7 +261,7 @@ class UpdraftPlus_Addon_LockAdmin {
 						if (!empty($url)) {
 							echo '<a href="'.esc_attr($url).'">';
 						}
-						_e('For unlocking support, please contact whoever manages UpdraftPlus for you.', 'updraftplus');
+						esc_attr_e('For unlocking support, please contact whoever manages UpdraftPlus for you.', 'updraftplus');
 						if (!empty($url)) {
 							echo '</a>';
 						}

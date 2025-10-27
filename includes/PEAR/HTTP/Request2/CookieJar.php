@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 /**
  * Stores cookies and passes them between HTTP requests
  *
@@ -575,4 +576,5 @@ class HTTP_Request2_CookieJar implements Serializable
         return (strlen($result ?: '') > 0) ? ($result . '.' . $sub) : null;
     }
 }
+// phpcs:enable
 ?>

@@ -157,25 +157,28 @@ class UpdraftPlus_Addons_Migrator extends UpdraftPlus_Migrator_Lite {
 		return $result;
 	}
 
+	/**
+	 * Display HTML for Migrate tab in 'Migrate/Clone' settings tab.
+	 *
+	 * @return void Display HTML.
+	 */
 	public function updraftplus_migrate_tab_output() {
 		global $updraftplus, $updraftplus_admin;// phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable -- Its used on line 187 but for some reason its flagged assuming becuase of the closed and open php tags ?>
 		<div id="updraft_migrate_tab_main">
 
 			<?php $updraftplus_admin->include_template('wp-admin/settings/temporary-clone.php'); ?>
 
-			<h2><?php _e('Migrate (create a copy of a site on hosting you control)', 'updraftplus'); ?></h2>
+			<h2><?php esc_html_e('Migrate (create a copy of a site on hosting you control)', 'updraftplus');?></h2>
 
 			<div id="updraft_migrate" class="postbox">
 				<div class="updraft_migrate_intro">
 					<p>
-						<?php echo __('A "migration" is ultimately the same as a restoration - but using backup archives that you import from another site.', 'updraftplus').' '.__('The UpdraftPlus Migrator modifies the restoration operation appropriately, to fit the backup data to the new site.', 'updraftplus'); ?>
-						<a href="https://updraftplus.com/faqs/how-do-i-migrate-to-a-new-site-location/" target="_blank"><?php _e('Read this article to see step-by-step how it\'s done.', 'updraftplus'); ?></a>
+						<?php echo esc_html(__('A "migration" is ultimately the same as a restoration - but using backup archives that you import from another site.', 'updraftplus').' '.__('The UpdraftPlus Migrator modifies the restoration operation appropriately, to fit the backup data to the new site.', 'updraftplus')); ?>
+						<a href="https://teamupdraft.com/documentation/updraftplus/topics/migration/faqs/how-to-migrate-a-wordpress-site-with-updraftplus?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=migrate-step-by-step&utm_creative_format=text" target="_blank"><?php esc_html_e('Read this article to see step-by-step how it\'s done.', 'updraftplus'); ?></a>
 					</p>
 				</div>
 				<?php
-
-				echo $this->migrate_widget();
-
+				$this->migrate_widget();
 				do_action('updraft_migrate_after_widget');
 
 				?>
@@ -186,11 +189,11 @@ class UpdraftPlus_Addons_Migrator extends UpdraftPlus_Migrator_Lite {
 	}
 
 	/**
-	 * Get the HTML of the migrate widget
+	 * Display HTML for `Restoring an existing backup set onto this site` in migrate tab.
 	 *
-	 * @param Array|Boolean $backup_history - the backup history list to use, or false to get the current list
+	 * @param array|boolean $backup_history - the backup history list to use, or false to get the current list.
 	 *
-	 * @return String - the HTML
+	 * @return void Display HTML.
 	 */
 	private function migrate_widget($backup_history = false) {
 
@@ -201,23 +204,23 @@ class UpdraftPlus_Addons_Migrator extends UpdraftPlus_Migrator_Lite {
 		// Save on SQL queries by using the method that batch-fetches
 		$backup_history = UpdraftPlus_Backup_History::add_jobdata($backup_history);
 
-		$ret = '<div class="updraft_migrate_widget_module_content">';
-		$ret .= '<header>';
-		$ret .= '<button class="button button-link close"><span class="dashicons dashicons-arrow-left-alt2"></span>'.__('back', 'updraftplus').'</button>';
-		$ret .= '<h3><span class="dashicons dashicons-migrate"></span>'.__('Restore an existing backup set onto this site', 'updraftplus').'</h3>';
-		$ret .= '</header>';
+		echo '<div class="updraft_migrate_widget_module_content">';
+		echo '<header>';
+		echo '<button class="button button-link close"><span class="dashicons dashicons-arrow-left-alt2"></span>'.esc_html__('back', 'updraftplus').'</button>';
+		echo '<h3><span class="dashicons dashicons-migrate"></span>'.esc_html__('Restore an existing backup set onto this site', 'updraftplus').'</h3>';
+		echo '</header>';
 
-		$ret .= '<a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'" onclick="jQuery(\'#updraft-navtab-backups\').trigger(\'click\'); return false;">'.__('To import a backup set, go to the "Existing backups" section in the "Backup/Restore" tab', 'updraftplus')."</a>";
+		echo '<a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'" onclick="jQuery(\'#updraft-navtab-backups\').trigger(\'click\'); return false;">'.esc_html__('To import a backup set, go to the "Existing backups" section in the "Backup/Restore" tab', 'updraftplus')."</a>";
 
 		if (empty($backup_history)) {
-			$ret .= '<p><em>'.__('This site has no backups to restore from yet.', 'updraftplus').'</em></p>';
-			$ret .= '</div>';
-			return $ret;
+			echo '<p><em>'.esc_html__('This site has no backups to restore from yet.', 'updraftplus').'</em></p>';
+			echo '</div>';
+			return;
 		}
 
 		$incremental_set_found = false;
 
-		$ret .= '<p class="updraft_migrate_select_backup">
+		echo '<p class="updraft_migrate_select_backup">
 			<select id="updraft_migrate_select_backup">';
 
 		krsort($backup_history);
@@ -238,23 +241,20 @@ class UpdraftPlus_Addons_Migrator extends UpdraftPlus_Migrator_Lite {
 
 			$date_label = $updraftplus_admin->date_label($pretty_date, $key, $backup, $jobdata, $non, true);
 
-			$ret .= '<option value="'.esc_attr($key).'">'.htmlspecialchars($date_label).'</option>';
+			echo '<option value="'.esc_attr($key).'">'.esc_html($date_label).'</option>';
 
 		}
 
 
-		$ret .= '</select>';
+		echo '</select>';
 
-		$ret .= '<button id="updraft_migrate_select_backup_go" title="'.__('After pressing this button, you will be given the option to choose which components you wish to migrate', 'updraftplus').'" type="button" class="button button-primary" onclick="var whichset=jQuery(\'#updraft_migrate_select_backup\').val();  updraft_initiate_restore(whichset);">'.__('Restore', 'updraftplus').'</button>';
+		echo '<button id="updraft_migrate_select_backup_go" title="'.esc_attr__('After pressing this button, you will be given the option to choose which components you wish to migrate', 'updraftplus').'" type="button" class="button button-primary" onclick="var whichset=jQuery(\'#updraft_migrate_select_backup\').val(); updraft_initiate_restore(whichset);">'.esc_html__('Restore', 'updraftplus').'</button>';
 
-		$ret .= '</p>';
+		echo '</p>';
 
-		if ($incremental_set_found) $ret .= '<p>'.__('For incremental backups, you will be able to choose which increments to restore at a later stage.', 'updraftplus').'</p>';
+		if ($incremental_set_found) echo '<p>'.esc_html__('For incremental backups, you will be able to choose which increments to restore at a later stage.', 'updraftplus').'</p>';
 
-		$ret .= '</div>';
-
-// $ret .= '</tbody></table>';
-		return $ret;
+		echo '</div>';
 	}
 
 	public function restored_themes_one($theme) {
@@ -521,56 +521,62 @@ if (!class_exists('UpdraftPlus_Addons_Migrator_RemoteSend')) {
 			add_action('admin_footer', array($this, 'admin_footer'));
 		}
 
+		/**
+		 * Display HTML for sending/receiving backups from/to remote sites in Migrate Tab.
+		 * Callback registered for `updraft_migrate_after_widget` action.
+		 *
+		 * @return void Display HTML.
+		 */
 		public function updraft_migrate_after_widget() {
 			?>
 			<div class="updraft_migrate_widget_module_content">
 				<header>
-					<button class="button button-link close"><span class="dashicons dashicons-arrow-left-alt2"></span><?php _e('back', 'updraftplus'); ?></button>
-					<h3><span class="dashicons dashicons-upload"></span><?php _e('Send a backup to another site', 'updraftplus');?></h3>
+					<button class="button button-link close"><span class="dashicons dashicons-arrow-left-alt2"></span><?php esc_html_e('back', 'updraftplus');?></button>
+					<h3><span class="dashicons dashicons-upload"></span><?php esc_html_e('Send a backup to another site', 'updraftplus');?></h3>
 				</header>
 				<div id="updraft_migrate_receivingsites" style="clear:both; margin-top:10px;">
-					<?php echo $this->get_remotesites_selector();?>
+					<?php $this->get_remotesites_selector(false, true);?>
 				</div>
 				<div class="updraft_migrate_add_site" style="display: none;">
 					<p>
 						<?php
-						echo __("To add a site as a destination for sending to, enter that site's key below.", 'updraftplus').' <a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'" onclick="alert(\''.esc_js(__('Keys for a site are created in the section "receive a backup from a remote site".', 'updraftplus').' '.__("So, to get the key for the remote site, open the 'Migrate Site' window on that site, and go to that section.", 'updraftplus')).'\'); return false;">'.__("How do I get a site's key?", 'updraftplus').'</a>';
+						echo esc_html__("To add a site as a destination for sending to, enter that site's key below.", 'updraftplus').' <a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'" onclick="alert(\''.esc_js(__('Keys for a site are created in the section "receive a backup from a remote site".', 'updraftplus').' '.__("So, to get the key for the remote site, open the 'Migrate Site' window on that site, and go to that section.", 'updraftplus')).'\'); return false;">'.esc_html__("How do I get a site's key?", 'updraftplus').'</a>';
 						?>
 					</p>
 					<div class="input-field">
-						<label><?php _e('Site key', 'updraftplus'); ?></label> <input type="text" id="updraft_migrate_receiving_new" placeholder="<?php esc_attr(__('Paste key here', 'updraftplus'));?>"> <button class="button-primary" id="updraft_migrate_receiving_makenew" onclick="updraft_migrate_receiving_makenew();"><?php _e('Add site', 'updraftplus');?></button>
+						<label><?php esc_html_e('Site key', 'updraftplus');?></label> <input type="text" id="updraft_migrate_receiving_new" placeholder="<?php esc_attr_e('Paste key here', 'updraftplus');?>"> <button class="button-primary" id="updraft_migrate_receiving_makenew" onclick="updraft_migrate_receiving_makenew();"><?php esc_html_e('Add site', 'updraftplus');?></button>
 					</div>
 				</div>
 			</div>
 
 			<div class="updraft_migrate_widget_module_content">
 				<header>
-					<button class="button button-link close"><span class="dashicons dashicons-arrow-left-alt2"></span><?php _e('back', 'updraftplus'); ?></button>
-					<h3><span class="dashicons dashicons-download"></span><?php _e('Receive a backup from a remote site', 'updraftplus');?></h3>
+					<button class="button button-link close"><span class="dashicons dashicons-arrow-left-alt2"></span><?php esc_html_e('back', 'updraftplus');?></button>
+					<h3><span class="dashicons dashicons-download"></span><?php esc_html_e('Receive a backup from a remote site', 'updraftplus');?></h3>
 				</header>
-				<p><?php echo htmlspecialchars(__('To allow another site to send a backup to this site, create a key below.', 'updraftplus').' '.__("When you are shown the key, then press the 'Migrate' button on the other (sending) site, and copy-and-paste the key over there (in the 'Send a backup to another site' section).", 'updraftplus')); ?></p>
+				<p><?php echo esc_html(__('To allow another site to send a backup to this site, create a key below.', 'updraftplus').' '.__("When you are shown the key, then press the 'Migrate' button on the other (sending) site, and copy-and-paste the key over there (in the 'Send a backup to another site' section).", 'updraftplus'));?></p>
 				<p>
-					<?php _e('Create a key: give this key a unique name (e.g. indicate the site it is for), then press "Create key":', 'updraftplus'); ?><br>
-					<input id="updraft_migrate_receivingsites_keyname" type="text" placeholder="<?php _e('Enter your chosen name', 'updraftplus');?>" value="<?php echo __('Key', 'updraftplus').' - '.date('Y-m-d');?>">
+					<?php esc_html_e('Create a key: give this key a unique name (e.g. indicate the site it is for), then press "Create key":', 'updraftplus');?><br>
+					<input id="updraft_migrate_receivingsites_keyname" type="text" placeholder="<?php esc_attr_e('Enter your chosen name', 'updraftplus');?>" value="<?php echo esc_attr(__('Key', 'updraftplus').' - '.date('Y-m-d'));?>">
 
-					<?php _e('Encryption key size:', 'updraftplus');?>
+					<?php esc_html_e('Encryption key size:', 'updraftplus');?>
 					<select id="updraft_migrate_receivingsites_keysize">
-						<option value="1024"><?php printf(__('%s bits', 'updraftplus').' - '.__('faster (possibility for slow PHP installs)', 'updraftplus'), '1024');?></option>
-						<option value="2048" selected="selected"><?php printf(__('%s bytes', 'updraftplus').' - '.__('recommended', 'updraftplus'), '2048');?></option>
-						<option value="4096"><?php printf(__('%s bits', 'updraftplus').' - '.__('slower, strongest', 'updraftplus'), '4096');?></option>
+						<option value="1024"><?php echo esc_html(sprintf(__('%s bits', 'updraftplus').' - '.__('faster (possibility for slow PHP installs)', 'updraftplus'), '1024'));?></option>
+						<option value="2048" selected="selected"><?php echo esc_html(sprintf(__('%s bytes', 'updraftplus').' - '.__('recommended', 'updraftplus'), '2048'));?></option>
+						<option value="4096"><?php echo esc_html(sprintf(__('%s bits', 'updraftplus').' - '.__('slower, strongest', 'updraftplus'), '4096'));?></option>
 					</select>
 
-					<button id="updraft_migrate_receivingsites_createkey" class="button button-primary" onclick="updraft_migrate_receivingsites_createkey();"><?php _e('Create key', 'updraftplus');?></button>
+					<button id="updraft_migrate_receivingsites_createkey" class="button button-primary" onclick="updraft_migrate_receivingsites_createkey();"><?php esc_html_e('Create key', 'updraftplus');?></button>
 
 				</p>
 
 				<div id="updraft_migrate_new_key_container" style="display:none;">
-					<?php _e('Your new key:', 'updraftplus'); ?><br>
+					<?php esc_html_e('Your new key:', 'updraftplus');?><br>
 					<textarea id="updraft_migrate_new_key" onclick="this.select();" style="width:625px; height:235px; word-wrap:break-word; border: 1px solid #aaa; border-radius: 3px; padding:4px;"></textarea>
 				</div>
 
 				<div id="updraft_migrate_our_keys_container">
-					<?php echo $this->list_our_keys(); ?>
+					<?php $this->list_our_keys(false, true);?>
 				</div>
 			</div>
 
@@ -580,6 +586,8 @@ if (!class_exists('UpdraftPlus_Addons_Migrator_RemoteSend')) {
 
 		/**
 		 * Runs upon the WP action admin_footer. If on a relevant page, we output some JavaScript.
+		 *
+		 * @return void Outputs javascript on relevant pages.
 		 */
 		public function admin_footer() {
 			global $updraftplus, $pagenow;
@@ -748,7 +756,7 @@ if (!class_exists('UpdraftPlus_Addons_Migrator_RemoteSend')) {
 						try {
 							if (resp.hasOwnProperty('e')) {
 								console.log(resp);
-								$('#updraft_migrate_tab_alt').append('<p style="color:red;">'+updraftlion.unexpectedresponse+' '+resp.r+' ('+resp.code+'). '+updraftlion.checkrpcsetup+'</p>');
+								$('#updraft_migrate_tab_alt').append('<p style="color:red;">'+updraftlion.unexpectedresponse+' '+resp.r+'.<br>'+updraftlion.checkrpcsetup+'</p>');
 								if (resp.hasOwnProperty('moreinfo')) {
 									$('#updraft_migrate_tab_alt').append(resp.moreinfo);
 								}
@@ -805,16 +813,12 @@ if (!class_exists('UpdraftPlus_Addons_Migrator_RemoteSend')) {
 				 */
 				function updraft_migrate_go_backup() {
 					var site_id = jQuery('#updraft_remotesites_selector').val();
-					var entities = [ '<?php
-						$entities = $updraftplus->get_backupable_file_entities();
-						echo implode("', '", array_keys($entities));
-						?>' ];
+					var entities = <?php echo wp_json_encode($updraftplus->get_backupable_file_entities());?>;
 					var onlythisfileentity = '';
-					var arrayLength = entities.length;
-					for (var i = 0; i < arrayLength; i++) {
-						if (jQuery('#remotesend_updraft_include_'+entities[i]).is(':checked')) {
+					for (var entity_key in entities) {
+						if (jQuery('#remotesend_updraft_include_'+entity_key).is(':checked')) {
 							if (onlythisfileentity != '') { onlythisfileentity += ','; }
-							onlythisfileentity += entities[i];
+							onlythisfileentity += entity_key;
 						}
 						//Do something
 					}

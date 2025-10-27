@@ -1,4 +1,6 @@
 <?php
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error message to be escaped when caught and printed.
+
 /**
  * Adapter for HTTP_Request2 wrapping around cURL extension
  *

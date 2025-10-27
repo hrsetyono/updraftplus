@@ -140,7 +140,7 @@ class UpdraftPlus_Addon_Autobackup {
 	public function configprint_expertoptions() {
 		?>
 		<tr class="expertmode updraft-hidden" style="display:none;">
-			<th><?php _e('UpdraftPlus Automatic Backups', 'updraftplus');?>:</th>
+			<th><?php esc_html_e('UpdraftPlus Automatic Backups', 'updraftplus');?>:</th>
 			<td><?php $this->auto_backup_form(false, 'updraft_autobackup_default', '1');?></td>
 		</tr>
 		<?php
@@ -324,7 +324,7 @@ class UpdraftPlus_Addon_Autobackup {
 	public function updraftplus_autobackup_blurb() {
 		$ret = '<div class="updraft-ad-container updated" style="display:block;">';
 		$ret .= '<h3 style="margin-top: 2px;">'. __('Be safe with an automatic backup', 'updraftplus').'</h3>';
-		$ret .= '<input '.((UpdraftPlus_Options::get_updraft_option('updraft_autobackup_default', true)) ? 'checked="checked"' : '').' type="checkbox" id="updraft_autobackup" value="doit" name="updraft_autobackup"> <label for="updraft_autobackup">'.
+		$ret .= '<input '.((UpdraftPlus_Options::get_updraft_option('updraft_autobackup_default')) ? 'checked="checked"' : '').' type="checkbox" id="updraft_autobackup" value="doit" name="updraft_autobackup"> <label for="updraft_autobackup">'.
 		__('Automatically backup (where relevant) plugins, themes and the WordPress database with UpdraftPlus before updating', 'updraftplus').
 		'</label><br><input checked="checked" type="checkbox" value="set" name="updraft_autobackup_setdefault" id="updraft_autobackup_sdefault"> <label for="updraft_autobackup_sdefault">'.
 		__('Remember this choice for next time (you will still have the chance to change it)', 'updraftplus').
@@ -337,13 +337,13 @@ class UpdraftPlus_Addon_Autobackup {
 	}
 
 	public function admin_footer_insertintoform() {
-		$def = UpdraftPlus_Options::get_updraft_option('updraft_autobackup_default', true);
+		$def = UpdraftPlus_Options::get_updraft_option('updraft_autobackup_default');
 		$godef = $def ? 'yes' : 'no';
 		// Note - now, in the new-style widgetised setup (Feb 2015), we always set updraftplus_noautobackup=1 - because the actual backup will be done in-page. But that is not done here - it is done when the form is submitted, in updraft_try_inpage();
-		echo <<<ENDHERE
-		<script>
+		?>
+		<script id="updraft_admin_footer_insertintoform">
 		jQuery(function($) {
-			$('form.upgrade').append('<input type="hidden" name="updraft_autobackup" class="updraft_autobackup_go" value="$godef">');
+			$('form.upgrade').append('<input type="hidden" name="updraft_autobackup" class="updraft_autobackup_go" value="<?php esc_attr_e($godef); ?>">');
 			$('form.upgrade').append('<input type="hidden" name="updraft_autobackup_setdefault" class="updraft_autobackup_setdefault" value="yes">');
 			$('#updraft_autobackup').on('click', function() {
 				var doauto = $(this).attr('checked');
@@ -354,8 +354,8 @@ class UpdraftPlus_Addon_Autobackup {
 				}
 			});
 			$('#updraft_autobackup_sdefault').on('click', function() {
-				var sdef = $(this).attr('checked');
-				if ('checked' == sdef) {
+				var default = $(this).attr('checked');
+				if ('checked' == default) {
 					$('.updraft_autobackup_setdefault').attr('value', 'yes');
 				} else {
 					$('.updraft_autobackup_setdefault').attr('value', 'no');
@@ -363,22 +363,22 @@ class UpdraftPlus_Addon_Autobackup {
 			});
 		});
 		</script>
-ENDHERE;
+		<?php
 	}
 
 	public function admin_footer() {
 		if (!current_user_can('update_'.$this->internaltype)) return;
-		$creating = esc_js(sprintf(__('Creating %s and database backup with UpdraftPlus...', 'updraftplus'), $this->type).' '.__('(logs can be found in the UpdraftPlus settings page as normal)...', 'updraftplus'));
-		$lastlog = esc_js(__('Last log message', 'updraftplus')).':';
+		$creating = sprintf(__('Creating %s and database backup with UpdraftPlus...', 'updraftplus'), $this->type).' '.__('(logs can be found in the UpdraftPlus settings page as normal)...', 'updraftplus');
+		$lastlog = __('Last log message', 'updraftplus').':';
 		
 		global $updraftplus;
 		$updraftplus->log(__('Starting automatic backup...', 'updraftplus'));
 
-		$unexpected_response = esc_js(__('Unexpected response:', 'updraftplus'));
+		$unexpected_response = __('Unexpected response:', 'updraftplus');
 
-		echo <<<ENDHERE
-			<script>
-				jQuery('h2').first().after('<p>$creating</p><p>$lastlog <span id="updraft_lastlogcontainer"></span></p><div id="updraft_activejobs"></div>');
+		?>
+			<script id="updraft_autobackup_showlastlog">
+				jQuery('h2').first().after('<p><?php echo esc_js($creating); ?></p><p><?php echo esc_js($lastlog); ?> <span id="updraft_lastlogcontainer"></span></p><div id="updraft_activejobs"></div>');
 				var lastlog_sdata = {
 					oneshot: 'yes'
 				};
@@ -396,12 +396,12 @@ ENDHERE;
 								}
 							}
 						} catch(err) {
-							console.log('$unexpected_response '+response);
+							console.log('<?php esc_js($unexpected_response); ?> '+response);
 						}
 					}, { type: GET, json_parse: false });
 				}
 			</script>
-ENDHERE;
+		<?php
 	}
 
 	private function process_form() {
@@ -451,7 +451,7 @@ ENDHERE;
 	public function admin_action_do_core_upgrade() {
 		if (!isset($_POST['upgrade'])) return;
 		if (!empty($_REQUEST['updraftplus_noautobackup'])) return;
-		if (!current_user_can('update_core')) wp_die(__('You do not have sufficient permissions to update this site.'));
+		if (!current_user_can('update_core')) wp_die(esc_html__('You do not have sufficient permissions to update this site.'));
 		check_admin_referer('upgrade-core');
 
 		// It is important to not use (bool)false here, as that conflicts with using get_option() with a non-false default value
@@ -466,17 +466,17 @@ ENDHERE;
 
 			$lastlog = __('Last log message', 'updraftplus').':';
 			
-			$unexpected_response = esc_js(__('Unexpected response:', 'updraftplus'));
+			$unexpected_response = __('Unexpected response:', 'updraftplus');
 
 			global $updraftplus;
-			$updraftplus->log(__('Starting automatic backup...', 'updraftplus'));
+			$updraftplus->log('Starting automatic backup...');
 
-			echo '<div class="wrap"><h2>'.__('Automatic Backup', 'updraftplus').'</h2>';
+			echo '<div class="wrap"><h2>'.esc_html__('Automatic Backup', 'updraftplus').'</h2>';
 
-			echo "<p>$creating</p><p>$lastlog <span id=\"updraft_lastlogcontainer\"></span></p><div id=\"updraft_activejobs\" style=\"clear:both;\"></div>";
+			echo "<p>".esc_html($creating)."</p><p>".esc_html($lastlog)." <span id=\"updraft_lastlogcontainer\"></span></p><div id=\"updraft_activejobs\" style=\"clear:both;\"></div>";
 
-			echo <<<ENDHERE
-				<script>
+			?>
+				<script id="updraft_admin_action_do_core_upgrade">
 					var lastlog_sdata = {
 						oneshot: 'yes'
 					};
@@ -494,12 +494,12 @@ ENDHERE;
 									}
 								}
 							} catch(err) {
-								console.log('$unexpected_response '+response);
+								console.log('<?php echo esc_js($unexpected_response); ?> '+response);
 							}
 						}, { type: GET, json_parse: false });
 					}
 				</script>
-ENDHERE;
+			<?php
 
 			$this->type = 'core';
 			$this->internaltype = 'core';
@@ -526,7 +526,7 @@ ENDHERE;
 
 	private function autobackup_go($entity, $jquery = false) {
 		define('UPDRAFTPLUS_BROWSERLOG', true);
-		echo '<p style="clear:left; padding-top:6px;">'.__('Creating backup with UpdraftPlus...', 'updraftplus')."</p>";
+		echo '<p style="clear:left; padding-top:6px;">'.esc_html__('Creating backup with UpdraftPlus...', 'updraftplus')."</p>";
 		@ob_end_flush();// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 		echo '<pre id="updraftplus-autobackup-log">';
 		global $updraftplus;
@@ -555,7 +555,7 @@ ENDHERE;
 		$updraftplus->boot_backup((int) $backup_files, 1, $backup_files_array, true);
 		echo '</pre>';
 		if ($updraftplus->error_count() >0) {
-			echo '<h2>'.__("Errors have occurred:", 'updraftplus').'</h2>';
+			echo '<h2>'.esc_html__("Errors have occurred:", 'updraftplus').'</h2>';
 			$updraftplus->list_errors();
 			if ($jquery) include(ABSPATH . 'wp-admin/admin-footer.php');
 			die;
@@ -574,9 +574,9 @@ ENDHERE;
 		echo "<script>var h = document.getElementById('updraftplus-autobackup-log'); h.style.display='none';</script>";
 
 		if ($jquery) {
-			echo '<p>'.__('Backup succeeded', 'updraftplus').' <a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'#updraftplus-autobackup-log" onclick="jQuery(\'#updraftplus-autobackup-log\').slideToggle();">'.__('(view log...)', 'updraftplus').'</a> - '.__('now proceeding with the updates...', 'updraftplus').'</p>';
+			echo '<p>'.esc_html__('Backup succeeded', 'updraftplus').' <a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'#updraftplus-autobackup-log" onclick="jQuery(\'#updraftplus-autobackup-log\').slideToggle();">'.esc_html__('(view log...)', 'updraftplus').'</a> - '.esc_html__('now proceeding with the updates...', 'updraftplus').'</p>';
 		} else {
-			echo '<p>'.__('Backup succeeded', 'updraftplus').' <a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'#updraftplus-autobackup-log" onclick="var s = document.getElementById(\'updraftplus-autobackup-log\'); s.style.display = \'block\';">'.__('(view log...)', 'updraftplus').'</a> - '.__('now proceeding with the updates...', 'updraftplus').'</p>';
+			echo '<p>'.esc_html__('Backup succeeded', 'updraftplus').' <a href="'.esc_url(UpdraftPlus::get_current_clean_url()).'#updraftplus-autobackup-log" onclick="var s = document.getElementById(\'updraftplus-autobackup-log\'); s.style.display = \'block\';">'.esc_html__('(view log...)', 'updraftplus').'</a> - '.esc_html__('now proceeding with the updates...', 'updraftplus').'</p>';
 		}
 
 	}
@@ -602,7 +602,7 @@ ENDHERE;
 		if (!isset($_POST['updraft_autobackup_answer'])) $this->auto_backup_form_and_die();
 
 		if ($autobackup) {
-			echo '<div class="wrap"><h2>'.__('Automatic Backup', 'updraftplus').'</h2>';
+			echo '<div class="wrap"><h2>'.esc_html__('Automatic Backup', 'updraftplus').'</h2>';
 			$this->autobackup_go('plugins', true);
 			echo '</div>';
 		}
@@ -653,7 +653,7 @@ ENDHERE;
 		if (!isset($_POST['updraft_autobackup_answer'])) $this->auto_backup_form_and_die();
 
 		if ($autobackup) {
-			echo '<div class="wrap"><h2>'.__('Automatic Backup', 'updraftplus').'</h2>';
+			echo '<div class="wrap"><h2>'.esc_html__('Automatic Backup', 'updraftplus').'</h2>';
 			$this->autobackup_go('themes', true);
 			echo '</div>';
 		}
@@ -708,8 +708,8 @@ ENDHERE;
 		$queue_variable = version_compare($wp_version, "4.5.999", "<") ? 'updateQueue' : 'queue';// phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UndefinedVariable -- Passed to javascript function below.
 
 		?>
-			<script type="text/javascript">
-				var updraft_credentialtest_nonce='<?php echo wp_create_nonce('updraftplus-credentialtest-nonce');?>';
+			<script>
+				var updraft_credentialtest_nonce='<?php echo esc_js(wp_create_nonce('updraftplus-credentialtest-nonce'));?>';
 				var updraft_siteurl = '<?php echo esc_js(site_url('', 'relative'));?>';
 				var updraft_autobackup_cleared_to_go = 0;
 				var updraft_actually_proceeding = false;
@@ -729,14 +729,14 @@ ENDHERE;
 					// Shiny updates in WP 4.2+ . We are particularly interested in wp.updates.ajaxLocked (updateLock before 4.6.0) and wp.updates.queueChecker();
 					window.wp = window.wp || {};
 					var wp = window.wp;
-					var shiny_updates = (wp.hasOwnProperty('updates') && wp.updates.hasOwnProperty('<?php echo $lock_variable; ?>')) ? 1 : 0;
+					var shiny_updates = (wp.hasOwnProperty('updates') && wp.updates.hasOwnProperty('<?php echo esc_js($lock_variable); ?>')) ? 1 : 0;
 
 					if (shiny_updates) {
 					
-						console.log('UpdraftPlus: WP shiny updates (4.2+) detected: lock (lock variable: <?php echo $lock_variable; ?>)');
+						console.log('UpdraftPlus: WP shiny updates (4.2+) detected: lock (lock variable: <?php echo esc_js($lock_variable); ?>)');
 						
 						// We lock at this early stage, because jQuery doesn't give us a way (without fiddling with internals) to change the event order to make our click handler go first and lock then.
-						wp.updates.<?php echo $lock_variable; ?> = true;
+						wp.updates.<?php echo esc_js($lock_variable); ?> = true;
 						updraft_we_locked_it = true;
 
 						$(window).off('beforeunload', wp.updates.beforeunload);
@@ -746,8 +746,8 @@ ENDHERE;
 							// Otherwise: let the unload proceed
 							if (updraft_we_locked_it) {
 								updraft_we_locked_it = false;
-								if (wp.updates.<?php echo $lock_variable; ?>) {
-									wp.updates.<?php echo $lock_variable; ?> = false;
+								if (wp.updates.<?php echo esc_js($lock_variable); ?>) {
+									wp.updates.<?php echo esc_js($lock_variable); ?> = false;
 									console.log("UpdraftPlus: unlocking shiny updates queue (which we locked) before page unload");
 								}
 							}
@@ -756,9 +756,9 @@ ENDHERE;
 
 						jQuery(document).on('wp-plugin-update-success wp-theme-update-success wp-plugin-delete-success wp-theme-delete-success wp-plugin-delete-error wp-theme-delete-error wp-plugin-install-error wp-theme-install-error', function(e) {
 							var event_type = e.type;
-							if (wp.updates.<?php echo $queue_variable;?>.length == 0) {
+							if (wp.updates.<?php echo esc_js($queue_variable); ?>.length == 0) {
 								console.log("UpdraftPlus: detected newly-empty queue (via "+event_type+"): locking");
-								wp.updates.<?php echo $lock_variable; ?> = true;
+								wp.updates.<?php echo esc_js($lock_variable); ?> = true;
 								updraft_we_locked_it = true;
 								something_happening = false;
 							}
@@ -772,9 +772,9 @@ ENDHERE;
 						updraft_actually_proceeding = false;
 						if (!shiny_updates) { return; }
 						// This function does everything needed
-						if (wp.updates.<?php echo $queue_variable;?>.length > 0) { wp.updates.requestForCredentialsModalCancel(); }
+						if (wp.updates.<?php echo esc_js($queue_variable); ?>.length > 0) { wp.updates.requestForCredentialsModalCancel(); }
 
-						wp.updates.<?php echo $lock_variable; ?> = true;
+						wp.updates.<?php echo esc_js($lock_variable); ?> = true;
 						updraft_we_locked_it = true;
 						something_happening = false;
 					}
@@ -782,28 +782,28 @@ ENDHERE;
 					function shiny_updates_complete() {
 						console.log("UpdraftPlus: WP shiny updates: shiny_updates_complete()");
 						if (!shiny_updates || updraft_actually_proceeding) { return; }
-						if (wp.updates.<?php echo $queue_variable;?>.length > 0) { return shiny_updates_cancel(); }
-						wp.updates.<?php echo $queue_variable;?> = [];
+						if (wp.updates.<?php echo esc_js($queue_variable); ?>.length > 0) { return shiny_updates_cancel(); }
+						wp.updates.<?php echo esc_js($queue_variable);?> = [];
 						something_happening = false;
-						wp.updates.<?php echo $lock_variable; ?> = true;
+						wp.updates.<?php echo esc_js($lock_variable); ?> = true;
 						updraft_we_locked_it = true;
 					}
 					
 					// This is called when a previously-delayed (i.e. delayed because we interposed to ask about, and perhaps perform, an automatic backup) update can now go ahead
 					function shiny_updates_proceed() {
 						something_happening = true;
-						var qlen = wp.updates.<?php echo $queue_variable;?>.length;
+						var qlen = wp.updates.<?php echo esc_js($queue_variable); ?>.length;
 						console.log('UpdraftPlus: WP shiny updates: shiny_updates_proceed(): release lock; queue length: '+qlen);
 						// FTP credentials, if necessary
-						wp.updates.<?php echo $lock_variable; ?> = false;
+						wp.updates.<?php echo esc_js($lock_variable); ?> = false;
 						updraft_we_locked_it = false;
-						if ( wp.updates.shouldRequestFilesystemCredentials && ! wp.updates.<?php echo $lock_variable; ?> ) {
+						if ( wp.updates.shouldRequestFilesystemCredentials && ! wp.updates.<?php echo esc_js($lock_variable); ?> ) {
 							// This will set the lock back to true, if necessary
 							wp.updates.requestFilesystemCredentials();
 						}
 						// This won't do anything if the lock is set
 						wp.updates.queueChecker();
-// 						qlen = wp.updates.<?php echo $queue_variable;?>.length;
+// 						qlen = wp.updates.<?php echo esc_js($queue_variable);?>.length;
 // 						if (qlen == 0) { updraft_actually_proceeding = false;} 
 						updraft_actually_proceeding = false;
 					}
@@ -817,10 +817,10 @@ ENDHERE;
 
 						updraft_actually_proceeding = false;
 
-						if (via_shiny_updates && !wp.updates.<?php echo $lock_variable; ?>) {
+						if (via_shiny_updates && !wp.updates.<?php echo esc_js($lock_variable); ?>) {
 							console.log('UpdraftPlus: WP shiny updates ('+type+'): lock');
 							something_happening = true;
-							wp.updates.<?php echo $lock_variable; ?> = true;
+							wp.updates.<?php echo esc_js($lock_variable); ?> = true;
 							updraft_we_locked_it = true;
 						}
 
@@ -973,7 +973,7 @@ ENDHERE;
 								are_there_any = true;
 							});
 							// Shiny updates unchecks the check boxes. So, we also need to check the queue.
-							if (!are_there_any && shiny_updates && wp.updates.<?php echo $queue_variable;?>.length == 0) { return; }
+							if (!are_there_any && shiny_updates && wp.updates.<?php echo esc_js($queue_variable); ?>.length == 0) { return; }
 
 							// The 0 here is because shiny updates have been disabled on bulk action forms for now
 							// And they also don't exist on themes at all. So, some things may need to change here when they do, or when they differ
@@ -982,7 +982,7 @@ ENDHERE;
 							// Remove lock, for the same reason - otherwise, the "do you really want to move away?" message pops up.
 							something_happening = false;
 							if (shiny_updates) {
-								wp.updates.<?php echo $lock_variable; ?> = false;
+								wp.updates.<?php echo esc_js($lock_variable); ?> = false;
 								updraft_we_locked_it = false;
 							}
 						}
@@ -1007,7 +1007,7 @@ ENDHERE;
 						switch (message.action) {
 							case 'update-plugin-via-update-now-link-text':
 								window.tb_remove();
-								if (wp.updates) wp.updates.<?php echo $lock_variable; ?> = true;
+								if (wp.updates) wp.updates.<?php echo esc_js($lock_variable); ?> = true;
 								if (message.data.slug) selector = 'tr.plugin-update-tr[data-slug="'+message.data.slug+'"] a.update-link';
 								if (message.data.plugin) {
 									if (selector) selector += ', ';
@@ -1015,29 +1015,31 @@ ENDHERE;
 								}
 								$(selector).trigger('click');
 							break;
+							case 'update-plugin-by-directly-accessing-wp-update-page-with-additional-query-args':
+								if (message.data.url) window.location = message.data.url;
+							break;
 						}
 					});
 					if (-1 !== window.location.pathname.indexOf('plugin-install.php')) {
 						$(window).on('load', function(e) {
-							var plugin_update_from_iframe_events = $._data(document.querySelector('div#plugin-information-footer a#plugin_update_from_iframe, div#plugin-information-footer a.button'), 'events'), plugin_update_from_iframe_event_handlers = [];
-							if ("object" === typeof plugin_update_from_iframe_events && Object.prototype.hasOwnProperty.call(plugin_update_from_iframe_events, 'click') && "[object Array]" === Object.prototype.toString.call(plugin_update_from_iframe_events.click)) {
-								for (var idx in plugin_update_from_iframe_events.click) {
-									// store all event handlers that are bound to $('#plugin_update_from_iframe') to an array variable (plugin_update_from_iframe_event_handlers)
-									plugin_update_from_iframe_event_handlers.push(plugin_update_from_iframe_events.click[idx].handler);
-								}
-							}
-							$('div#plugin-information-footer a#plugin_update_from_iframe, div#plugin-information-footer a.button').off('click');
-							$('div#plugin-information-footer a#plugin_update_from_iframe, div#plugin-information-footer a.button').on('click', function(e) {
+							console.log('UpdraftPlus: WP thickbox for displaying plugin information on the dialog box is now fully loaded');
+							var plugin_info_footer_div = $('div#plugin-information-footer');
+							$('a#plugin_install_from_iframe, a#plugin_update_from_iframe, a.button', plugin_info_footer_div).off('click');
+							$(plugin_info_footer_div).off('click');
+							$('div#plugin-information-footer a.button').on('click', function(e) {
 								var target = window.parent === window ? null : window.parent;
 								$.support.postMessage = !! window.postMessage;
-								if (false === $.support.postMessage || null === target || -1 !== window.parent.location.pathname.indexOf('update-core.php')) return;
+								if (false === $.support.postMessage || null === target) return;
 								e.preventDefault();
-								$.when(function() {
-									for	(var idx in plugin_update_from_iframe_event_handlers) {
-										// it's going to execute all event handlers that previously were bound to $('div#plugin-information-footer a#plugin_update_from_iframe, div#plugin-information-footer a.button') and were set to off
-										if ("function" === typeof plugin_update_from_iframe_event_handlers[idx]) plugin_update_from_iframe_event_handlers[idx].call(this, e);
+								var message = {};
+								if (window.parent.location.pathname.indexOf('update-core.php') >= 0) {
+									message = {
+										action: 'update-plugin-by-directly-accessing-wp-update-page-with-additional-query-args',
+										data: {
+											url: $(this).prop('href')
+										}
 									}
-								}).done(function(e) {
+								} else if (window.parent.location.pathname.indexOf('plugins.php') >= 0) {
 									message = {
 										action: 'update-plugin-via-update-now-link-text',
 										data: {
@@ -1047,8 +1049,8 @@ ENDHERE;
 											slug: $(this).data('slug')
 										}
 									};
-									target.postMessage(JSON.stringify(message), window.location.origin);
-								});
+								}
+								target.postMessage(JSON.stringify(message), window.location.origin);
 							});
 						});
 					}
@@ -1151,7 +1153,7 @@ ENDHERE;
 			?>
 				<h2>
 				<?php
-					echo __('UpdraftPlus Automatic Backups', 'updraftplus');
+					echo sprintf(esc_html__('%s Automatic Backups', 'updraftplus'), 'UpdraftPlus');
 				?>
 				</h2>
 				<?php
@@ -1177,39 +1179,39 @@ ENDHERE;
 			padding: 6px; margin:8px 0px; max-width: 540px;">
 			<h3 style="margin-top: 0px;">
 			<?php
-				_e('Be safe with an automatic backup', 'updraftplus');
+				esc_html_e('Be safe with an automatic backup', 'updraftplus');
 			?>
 			</h3>
 			<?php
 		}
 		?>
-		<input <?php if (UpdraftPlus_Options::get_updraft_option('updraft_autobackup_default', true)) echo 'checked="checked"';?> type="checkbox" id="<?php echo $id;?>" value="<?php echo $value;?>" name="<?php echo $id;?>">
+		<input <?php if (UpdraftPlus_Options::get_updraft_option('updraft_autobackup_default')) echo 'checked="checked"';?> type="checkbox" id="<?php echo esc_attr($id);?>" value="<?php echo esc_attr($value);?>" name="<?php echo esc_attr($id);?>">
 		<?php if (!$include_wrapper) echo '<br>'; ?>
-		<label for="<?php echo $id;?>"><?php echo __('Backup (where relevant) plugins, themes and the WordPress database with UpdraftPlus before updating', 'updraftplus');?></label><br>
+		<label for="<?php echo esc_attr($id);?>"><?php esc_html_e('Backup (where relevant) plugins, themes and the WordPress database with UpdraftPlus before updating', 'updraftplus');?></label><br>
 		<?php
 		if ($include_wrapper) {
 			?>
 			<input checked="checked" type="checkbox" value="yes" name="updraft_autobackup_setdefault" id="updraft_autobackup_setdefault"> <label for="updraft_autobackup_setdefault"><?php
-				_e('Remember this choice for next time (you will still have the chance to change it)', 'updraftplus');
+				esc_html_e('Remember this choice for next time (you will still have the chance to change it)', 'updraftplus');
 			?></label><br><em>
 			<?php
 		}
 		?>
-		<p><a href="https://updraftplus.com/automatic-backups/" target="_blank"><?php _e('Read more about how this works...', 'updraftplus'); ?></a></p>
+		<p><a href="https://teamupdraft.com/updraftplus/features/wordpress-automatic-backup-before-updates/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=backup-before-updates&utm_creative_format=text" target="_blank"><?php esc_html_e('Read more about how this works...', 'updraftplus'); ?></a></p>
 		<?php
 		if ($include_wrapper) {
 		?></em>
 		<?php
 			if ($form_tags) {
 			?>
-				<p><em><?php _e('Do not abort after pressing Proceed below - wait for the backup to complete.', 'updraftplus'); ?></em></p>
+				<p><em><?php esc_html_e('Do not abort after pressing Proceed below - wait for the backup to complete.', 'updraftplus'); ?></em></p>
 				<?php
 			}
 		?>
 		<?php
 			if ($form_tags) {
 			?>
-				<input class="button button-primary" style="clear:left; margin-top: 6px;" name="updraft_autobackup_answer" type="submit" value="<?php _e('Proceed with update', 'updraftplus');?>">
+				<input class="button button-primary" style="clear:left; margin-top: 6px;" name="updraft_autobackup_answer" type="submit" value="<?php esc_attr_e('Proceed with update', 'updraftplus');?>">
 			<?php
 			}
 		?>

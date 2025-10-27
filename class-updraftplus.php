@@ -94,6 +94,7 @@ class UpdraftPlus {
 		global $pagenow;
 		// Initialisation actions - takes place on plugin load
 
+		// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fopen,WordPress.WP.AlternativeFunctions.file_system_operations_fread,WordPress.WP.AlternativeFunctions.file_system_operations_fclose,WordPress.WP.AlternativeFunctions.file_system_operations_readfile,WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents,WordPress.WP.AlternativeFunctions.file_system_operations_fwrite   -- suggesting using the interactive WP Filesystem API (or any other API) for read-access to files is absurd; and all write operations in this file are non-interactive, to known-writable directories
 		if ($fp = fopen(UPDRAFTPLUS_DIR.'/updraftplus.php', 'r')) {
 			$file_data = fread($fp, 1024);
 			if (preg_match("/Version: ([\d\.]+)(\r|\n)/", $file_data, $matches)) {
@@ -123,8 +124,7 @@ class UpdraftPlus {
 		}
 
 		// Create admin page
-		add_action('init', array($this, 'handle_url_actions'));
-		add_action('init', array($this, 'updraftplus_single_site_maintenance_init'));
+		add_action('init', array($this, 'initialize_required_settings'));
 		// Run earlier than default - hence earlier than other components
 		// admin_menu runs earlier, and we need it because options.php wants to use $updraftplus_admin before admin_init happens
 		add_action(apply_filters('updraft_admin_menu_hook', 'admin_menu'), array($this, 'admin_menu'), 9);
@@ -188,6 +188,7 @@ class UpdraftPlus {
 		if (!wp_next_scheduled('updraftplus_clean_temporary_files')) {
 			wp_schedule_event(time(), 'twicedaily', 'updraftplus_clean_temporary_files');
 		}
+		// phpcs:enable
 	}
 
 	/**
@@ -390,16 +391,16 @@ class UpdraftPlus {
 	/**
 	 * Attempt to close the connection to the browser, optionally with some output sent first, whilst continuing execution
 	 *
-	 * @param String $txt - output to send
+	 * @param String $txt - JSON-encoded output to send
 	 */
 	public function close_browser_connection($txt = '') {
 		// Close browser connection so that it can resume AJAX polling
 		header('Content-Length: '.(empty($txt) ? '0' : 4+strlen($txt)));
 		header('Connection: close');
-		header('Content-Encoding: none');
+		header('Content-Type: application/json'); // Used to be 'none', but all inputs to this method are JSON-encoded
 		if (function_exists('session_id') && session_id()) session_write_close();
 		echo "\r\n\r\n";
-		echo $txt;
+		echo $txt; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- All inputs to this method are already JSON-encoded, and the output context is not HTML
 		// These two added - 19-Feb-15 - started being required on local dev machine, for unknown reason (probably some plugin that started an output buffer).
 		$ob_level = ob_get_level();
 		while ($ob_level > 0) {
@@ -553,13 +554,24 @@ class UpdraftPlus {
 	}
 
 	/**
+	 * Initialize all settings required for the plugin to work properly
+	 */
+	public function initialize_required_settings() {
+		// Tell WordPress where to find the translations
+		load_plugin_textdomain('updraftplus', false, basename(dirname(__FILE__)).'/languages/');
+		do_action('updraftplus_load_translations_for_udcentral');
+		$this->handle_url_actions();
+		$this->updraftplus_single_site_maintenance_init();
+	}
+
+	/**
 	 * Handle actions passed on to method plugins; e.g. Google OAuth 2.0 - ?action=updraftmethod-googledrive-auth&page=updraftplus
 	 * Nov 2013: Google's new cloud console, for reasons as yet unknown, only allows you to enter a redirect_uri with a single URL parameter... thus, we put page second, and re-add it if necessary. Apr 2014: Bitcasa already do this, so perhaps it is part of the OAuth2 standard or best practice somewhere.
 	 * Also handle action=downloadlog
 	 *
 	 * @return Void - may not necessarily return at all, depending on the action
 	 */
-	public function handle_url_actions() {
+	private function handle_url_actions() {
 
 		// First, basic security check: must be an admin page, with ability to manage options, with the right parameters
 		// Also, only on GET because WordPress on the options page repeats parameters sometimes when POST-ing via the _wp_referer field
@@ -594,7 +606,7 @@ class UpdraftPlus {
 				if (!isset($storage_objects_and_ids[$method]['object']) || !is_object($storage_objects_and_ids[$method]['object'])) {
 					updraft_try_include_file('methods/'.$method.'.php', 'include_once');
 					$call_class = "UpdraftPlus_BackupModule_".$method;
-					if (!class_exists($call_class)) die(htmlspecialchars($call_class)." class couldn't be found");
+					if (!class_exists($call_class)) die(esc_html($call_class)." class couldn't be found");
 					$backup_obj = new $call_class;
 				} else {
 					$backup_obj = $storage_objects_and_ids[$method]['object'];
@@ -639,9 +651,9 @@ class UpdraftPlus {
 				// At some point, it may be worth merging this with the previous section
 				$updraft_dir = $this->backups_dir_location();
 				
-				$findex = isset($_GET['findex']) ? (int) $_GET['findex'] : 0;
-				$backup_timestamp = $_GET['backup_timestamp'];
-				$what = (string) $_GET['what'];
+				$findex = isset($_GET['findex']) ? (int) stripslashes((string) $_GET['findex']) : 0;
+				$backup_timestamp = stripslashes((string) $_GET['backup_timestamp']);
+				$what = stripslashes((string) $_GET['what']);
 				
 				$backup_set = UpdraftPlus_Backup_History::get_history($backup_timestamp);
 
@@ -678,7 +690,7 @@ class UpdraftPlus {
 	 *
 	 * @return void
 	 */
-	public function updraftplus_single_site_maintenance_init() {
+	private function updraftplus_single_site_maintenance_init() {
 		
 		if (!is_multisite()) return;
 		
@@ -695,7 +707,7 @@ class UpdraftPlus {
 			return;
 		}
 		
-		wp_die('<h1>'.__('Under Maintenance', 'updraftplus') .'</h1><p>'.__('Briefly unavailable for scheduled maintenance.', 'updraftplus').' '.__('Check back in a minute.', 'updraftplus').'</p>');
+		wp_die('<h1>'.esc_html__('Under Maintenance', 'updraftplus') .'</h1><p>'.esc_html(__('Briefly unavailable for scheduled maintenance.', 'updraftplus').' '.__('Check back in a minute.', 'updraftplus')).'</p>');
 	}
 
 	/**
@@ -749,9 +761,6 @@ class UpdraftPlus {
 	 * Runs upon the WP action plugins_loaded
 	 */
 	public function plugins_loaded() {
-
-		// Tell WordPress where to find the translations
-		load_plugin_textdomain('updraftplus', false, basename(dirname(__FILE__)).'/languages/');
 		
 		// The Google Analyticator plugin does something horrible: loads an old version of the Google SDK on init, always - which breaks us
 		if ((defined('DOING_CRON') && DOING_CRON) || (defined('DOING_AJAX') && DOING_AJAX && isset($_REQUEST['subaction']) && 'backupnow' == $_REQUEST['subaction']) || (isset($_GET['page']) && 'updraftplus' == $_GET['page'] )) {
@@ -1012,7 +1021,9 @@ class UpdraftPlus {
 		
 		$mp = (int) $wpdb->get_var("SELECT @@session.max_allowed_packet");
 
-		$logline = "UpdraftPlus WordPress backup plugin (https://updraftplus.com): ".$this->version." WP: ".$wp_version." PHP: ".phpversion()." (".PHP_SAPI.", ".(function_exists('php_uname') ? @php_uname() : PHP_OS).") MySQL: $mysql_version (max packet size=$mp) WPLANG: ".get_locale()." Server: ".$_SERVER["SERVER_SOFTWARE"]." safe_mode: $safe_mode max_execution_time: $max_execution_time memory_limit: $memory_limit (used: {$memory_usage}M | {$memory_usage2}M) multisite: ".(is_multisite() ? (is_subdomain_install() ? 'Y (sub-domain)' : 'Y (sub-folder)') : 'N')." openssl: ".(defined('OPENSSL_VERSION_TEXT') ? OPENSSL_VERSION_TEXT : 'N')." mcrypt: ".(function_exists('mcrypt_encrypt') ? 'Y' : 'N')." LANG: ".getenv('LANG')." ZipArchive::addFile: ";// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
+		$proxy = new WP_HTTP_Proxy();
+
+		$logline = "UpdraftPlus WordPress backup plugin (https://updraftplus.com): ".$this->version." WP: ".$wp_version." PHP: ".phpversion()." (".PHP_SAPI.", ".(function_exists('php_uname') ? @php_uname() : PHP_OS).") MySQL: $mysql_version (max packet size=$mp) WPLANG: ".get_locale()." Server: ".$_SERVER["SERVER_SOFTWARE"]." safe_mode: $safe_mode max_execution_time: $max_execution_time memory_limit: $memory_limit (used: {$memory_usage}M | {$memory_usage2}M) multisite: ".(is_multisite() ? (is_subdomain_install() ? 'Y (sub-domain)' : 'Y (sub-folder)') : 'N')." openssl: ".(defined('OPENSSL_VERSION_TEXT') ? OPENSSL_VERSION_TEXT : 'N')." mcrypt: ".(function_exists('mcrypt_encrypt') ? 'Y' : 'N')." LANG: ".getenv('LANG')." WP Proxy: ".($proxy->is_enabled() ? 'enabled' : 'disabled')." ZipArchive::addFile: ";// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 
 		// method_exists causes some faulty PHP installations to segfault, leading to support requests
 		if (version_compare(phpversion(), '5.2.0', '>=') && extension_loaded('zip')) {
@@ -1179,8 +1190,8 @@ class UpdraftPlus {
 				break;
 		}
 
-		if (defined('UPDRAFTPLUS_CONSOLELOG') && UPDRAFTPLUS_CONSOLELOG) echo $line."\n";
-		if (defined('UPDRAFTPLUS_BROWSERLOG') && UPDRAFTPLUS_BROWSERLOG) echo htmlentities($line)."<br>\n";
+		if (defined('UPDRAFTPLUS_CONSOLELOG') && UPDRAFTPLUS_CONSOLELOG) echo $line."\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- This constant can only be set deliberately by a user who is indicating he requires raw output on in a console (i.e. non-HTML) context
+		if (defined('UPDRAFTPLUS_BROWSERLOG') && UPDRAFTPLUS_BROWSERLOG) echo esc_html($line)."<br>\n";
 	}
 
 	/**
@@ -1265,12 +1276,15 @@ class UpdraftPlus {
 	 * Outputs data to the browser.
 	 * Will also fill the buffer on nginx systems after a specified amount of time.
 	 *
-	 * @param String $line The text to output
+	 * @param String $line The text to output. This may validly include HTML.
+	 *
 	 * @return void
 	 */
 	public function output_to_browser($line) {
-		echo $line;
+		echo wp_kses_post($line);
 		if (false === stripos($_SERVER['SERVER_SOFTWARE'], 'nginx')) return;
+		// Change it to what was actually output
+		$line = wp_kses_post($line);
 		static $strcount = 0;
 		static $time = 0;
 		$buffer_size = 65536; // The default NGINX config uses a buffer size of 32 or 64k, depending on the system. So we use 64K.
@@ -1283,7 +1297,7 @@ class UpdraftPlus {
 				$strcount = $strcount - $buffer_size;
 				return;
 			}
-			echo str_repeat(" ", ($buffer_size-$strcount));
+			echo str_repeat(' ', $buffer_size-$strcount); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Absurd false positive
 			// reset values
 			$time = time();
 			$strcount = 0;
@@ -2246,7 +2260,8 @@ class UpdraftPlus {
 		if ($last_bnonce) $this->jobdata_reset();
 		$last_bnonce = $bnonce;
 	
-		set_error_handler(array($this, 'php_error'), E_ALL & ~E_STRICT);
+		$error_levels = version_compare(PHP_VERSION, '8.4.0', '>=') ? E_ALL : E_ALL & ~E_STRICT;
+		set_error_handler(array($this, 'php_error'), $error_levels);
 
 		$this->current_resumption = $resumption_no;
 
@@ -2676,7 +2691,14 @@ class UpdraftPlus {
 		}
 
 		$total_size = 0;
-		
+
+		$service = $this->just_one($this->jobdata_get('service'));
+		if (empty($service)) {
+			$message = 'This file has already been successfully processed';
+		} else {
+			$message = 'This file has already been successfully uploaded';
+		}
+
 		// Queue files for upload
 		foreach ($our_files as $key => $files) {
 			// Only continue if the stored info was about a dump
@@ -2697,7 +2719,7 @@ class UpdraftPlus {
 				}
 				
 				if ($this->is_uploaded($file)) {
-					$this->log("$file: $key: This file has already been successfully uploaded");
+					$this->log("$file: $key: $message");
 				} elseif (is_file($updraft_dir.'/'.$file)) {
 					if (!in_array($file, $undone_files)) {
 						$this->log("$file: $key: This file has not yet been successfully uploaded: will queue");
@@ -3096,6 +3118,7 @@ class UpdraftPlus {
 	 * @return Boolean|Void - as for UpdraftPlus::boot_backup()
 	 */
 	public function backup_all($options = array()) {
+		if (!is_array($options)) $options = array();
 		$skip_cloud = empty($options['nocloud']) ? false : true;
 		return $this->boot_backup(1, 1, false, false, $skip_cloud ? 'none' : false, $options);
 	}
@@ -3183,7 +3206,7 @@ class UpdraftPlus {
 	 */
 	public function get_backup_job_semaphore_lock($job_nonce, $resumption_no) {
 
-		$semaphore = $job_nonce;
+		$semaphore = 'udp_backupjob_'.$job_nonce;
 		
 		if (!class_exists('Updraft_Semaphore_3_0')) updraft_try_include_file('includes/class-updraft-semaphore.php', 'include_once');
 
@@ -3310,8 +3333,12 @@ class UpdraftPlus {
 		if (!is_file($this->logfile_name)) {
 			$this->log('Failed to open log file ('.$this->logfile_name.') - you need to check your UpdraftPlus settings (your chosen directory for creating files in is not writable, or you ran out of disk space). Backup aborted.');
 			$this->log(__('Could not create files in the backup directory.', 'updraftplus').' '.__('Backup aborted - check your UpdraftPlus settings.', 'updraftplus'), 'error');
-			$final_message = __('UpdraftPlus is unable to perform backups as your backup directory is not writable or the disk space is full.', 'updraftplus').' '.__('Please check the backup directory and ensure it is writable so that backups may continue.', 'updraftplus');
-			$this->send_results_email($final_message, $this->jobdata);
+			
+			if (!defined('UPDRAFTPLUS_SEND_UNWRITABLE_BACKUP_DIRECTORY_EMAIL') || UPDRAFTPLUS_SEND_UNWRITABLE_BACKUP_DIRECTORY_EMAIL) {
+				$final_message = __('UpdraftPlus is unable to perform backups as your backup directory is not writable or the disk space is full.', 'updraftplus').' '.__('Please check the backup directory and ensure it is writable so that backups may continue.', 'updraftplus');
+				$this->send_results_email($final_message, $this->jobdata);
+			}
+			
 			return false;
 		}
 
@@ -3588,7 +3615,7 @@ class UpdraftPlus {
 	public function backup_finish($do_cleanup, $allow_email, $force_abort = false) {
 
 		if (!empty($this->semaphore)) $this->semaphore->unlock();
-		if (!empty($this->backup_semaphore)) $this->backup_semaphore->release();
+		if (!empty($this->backup_semaphore)) $this->backup_semaphore->delete();
 
 		$this->restore_composer_autoloaders();
 		
@@ -3836,13 +3863,23 @@ class UpdraftPlus {
 			$rss = $this->get_updraftplus_rssfeed();
 			$this->log('Fetched RSS news feed; result is a: '.get_class($rss));
 			if (is_a($rss, 'SimplePie')) {
-				$feed .= __('Email reports created by UpdraftPlus (free edition) bring you the latest UpdraftPlus.com news', 'updraftplus')." - ".sprintf(__('read more at %s', 'updraftplus'), 'https://updraftplus.com/news/')."\r\n\r\n";
-				foreach ($rss->get_items(0, 6) as $item) {
+				$feed .= __('Email reports created by UpdraftPlus (free edition) bring you the latest TeamUpdraft.com news', 'updraftplus')." - ";
+				/* translators: %s: The TeamUpdraft news URL */
+				$feed .= sprintf(__('read more at %s', 'updraftplus'), 'https://teamupdraft.com/blog/')."\r\n\r\n";
+				$i = 0;
+				foreach ($rss->get_items(0, 20) as $item) {
+					$item_title = $item->get_title();
+					$item_date = $item->get_date('j F Y');
+
+					if ($i >= 6) break;
+					if (empty($item_title)) continue;
+					
 					$feed .= '* ';
-					$feed .= $item->get_title();
-					$feed .= " (".$item->get_date('j F Y').")";
+					$feed .= $item_title;
+					if (!empty($item_date)) $feed .= " (".$item_date.")";
 					// $feed .= ' - '.$item->get_permalink();
 					$feed .= "\r\n";
+					$i++;
 				}
 			}
 			$feed .= "\r\n\r\n";
@@ -3865,7 +3902,7 @@ class UpdraftPlus {
 		
 		if (!class_exists('UpdraftPlus_Notices')) updraft_try_include_file('includes/updraftplus-notices.php', 'include_once');
 		global $updraftplus_notices;
-		$ws_advert = $updraftplus_notices->do_notice(false, 'report-plain', true);
+		$ws_notice = $updraftplus_notices->do_notice(false, 'report-plain', true);
 		
 		$body = apply_filters('updraft_report_body',
 			__('Backup of:', 'updraftplus').' '.site_url()."\r\n".
@@ -3875,7 +3912,7 @@ class UpdraftPlus {
 			$extra_msg.
 			"\r\n".
 			$feed.
-			$ws_advert."\r\n".
+			$ws_notice."\r\n".
 			$append_log,
 			$final_message,
 			$backup_contains,
@@ -4090,14 +4127,14 @@ class UpdraftPlus {
 		foreach ($this->errors as $err) {
 			if (is_wp_error($err)) {
 				foreach ($err->get_error_messages() as $msg) {
-					echo '<li>'.htmlspecialchars($msg).'<li>';
+					echo '<li>'.esc_html($msg).'<li>';
 				}
 			} elseif (is_array($err) && ('error' == $err['level'] || 'warning' == $err['level'])) {
-				echo "<li>".htmlspecialchars($err['message'])."</li>";
+				echo "<li>".esc_html($err['message'])."</li>";
 			} elseif (is_string($err)) {
-				echo "<li>".htmlspecialchars($err)."</li>";
+				echo "<li>".esc_html($err)."</li>";
 			} else {
-				print "<li>".print_r($err, true)."</li>";
+				print "<li>".esc_html(print_r($err, true))."</li>";
 			}
 		}
 		echo '</ul>';
@@ -4833,7 +4870,7 @@ class UpdraftPlus {
 		if (function_exists('set_time_limit')) @set_time_limit(900);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the function.
 
 		if (!file_exists($fullpath) || filesize($fullpath) < 1) {
-			_e('File not found', 'updraftplus');
+			esc_html_e('File not found', 'updraftplus');
 			return;
 		}
 
@@ -5489,7 +5526,7 @@ class UpdraftPlus {
 		} elseif (count($tables_found) >= 0.90 * $php_max_input_vars) {
 			$php_max_input_vars_exceeded = true;
 			// If the amount of tables exceed 90% of the php max input vars then truncate the list to 50% of the php max input vars value
-			$tables_found = array_splice($tables_found, 0, $php_max_input_vars / 2);
+			$tables_found = array_splice($tables_found, 0, intval($php_max_input_vars / 2));
 		}
 
 		$php_max_input_vars_value = false == $php_max_input_vars ? 0 : $php_max_input_vars;
@@ -5515,15 +5552,15 @@ class UpdraftPlus {
 
 			$select_restore_tables .= '<div class="updraftplus_restore_tables_options_container" style="display:none;">';
 
+			$select_table_button = '<p><a href="#" class="updraft-select-all-tables">'.__('Select All', 'updraftplus').'</a> | <a href="#" class="updraft-deselect-all-tables">'.__('Deselect All', 'updraftplus').'</a></p>';
+			$select_restore_tables .= $select_table_button;
+
 			if ($db_scan_timed_out || $php_max_input_vars_exceeded) {
 				if ($db_scan_timed_out) $all_other_table_title = __('The database scan was taking too long and consequently the list of all tables in the database could not be completed.', 'updraftplus').' '.__('This option will ensure all tables not found will be backed up.', 'updraftplus');
 				if ($php_max_input_vars_exceeded) $all_other_table_title = __('The amount of database tables scanned is near or over the php_max_input_vars value so some tables maybe truncated.', 'updraftplus').' '.__('This option will ensure all tables not found will be backed up.', 'updraftplus');
-				$select_restore_tables .= '<input class="updraft_restore_tables_options" id="updraft_restore_table_udp_all_other_tables" checked="checked" type="checkbox" name="updraft_restore_tables_options[]" value="udp_all_other_tables"> ';
-				$select_restore_tables .= '<label for="updraft_restore_table_udp_all_other_tables"  title="'.$all_other_table_title.'">'.__('Include all tables not listed below', 'updraftplus').'</label><br>';
+				$select_restore_tables .= '<div style="margin-bottom:0.7rem;margin-top:0.7rem;"><input class="updraft_restore_tables_options" id="updraft_restore_table_udp_all_other_tables" checked="checked" type="checkbox" name="updraft_restore_tables_options[]" value="udp_all_other_tables"> ';
+				$select_restore_tables .= '<label for="updraft_restore_table_udp_all_other_tables"  title="'.$all_other_table_title.'">'.__('Include all tables not listed below', 'updraftplus').'</label></div>';
 			}
-
-			$select_table_button = '<p><a href="#" class="updraft-select-all-tables">'.__('Select All', 'updraftplus').'</a> | <a href="#" class="updraft-deselect-all-tables">'.__('Deselect All', 'updraftplus').'</a></p>';
-			$select_restore_tables .= $select_table_button;
 
 			foreach ($tables_found as $table) {
 				$checked = $skip_composite_tables && UpdraftPlus_Database_Utility::table_has_composite_private_key($table) ? '' : 'checked="checked"';
@@ -5871,37 +5908,70 @@ class UpdraftPlus {
 				return apply_filters('updraftplus_com_shop', 'https://updraftplus.com/shop/');
 				break;
 			case 'premium':
-				return apply_filters('updraftplus_com_premium', 'https://updraftplus.com/shop/updraftplus-premium/');
+				return apply_filters('updraftplus_com_premium', 'https://teamupdraft.com/updraftplus/pricing?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-premium&utm_creative_format=text');
 				break;
 			case 'buy-tokens':
 				return apply_filters('updraftplus_com_updraftclone_tokens', 'https://updraftplus.com/shop/updraftclone-tokens/');
 				break;
 			case 'lost-password':
-				return apply_filters('updraftplus_com_myaccount_lostpassword', 'https://updraftplus.com/my-account/lost-password/');
+				return apply_filters('updraftplus_com_myaccount_lostpassword', 'https://teamupdraft.com/my-account/lost-password/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=forgotten-details&utm_creative_format=text');
 				break;
 			case 'mothership':
 				return apply_filters('updraftplus_com_mothership', 'https://updraftplus.com/plugin-info');
 				break;
 			case 'shop_premium':
-				return apply_filters('updraftplus_com_shop_premium', 'https://updraftplus.com/shop/updraftplus-premium/');
+				return apply_filters('updraftplus_com_shop_premium', 'https://teamupdraft.com/updraftplus/pricing?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-premium&utm_creative_format=text#pricing-block');
 				break;
 			case 'shop_vault_5':
-				return apply_filters('updraftplus_com_shop_vault_5', 'https://updraftplus.com/shop/updraftplus-vault-storage-5-gb/');
+				return apply_filters('updraftplus_com_shop_vault_5', 'https://teamupdraft.com/cart/?add-to-cart=1431&variation_id=1441?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-vault-storage-$1-trial&utm_creative_format=button');
 				break;
 			case 'shop_vault_15':
-				return apply_filters('updraftplus_com_shop_vault_15', 'https://updraftplus.com/shop/updraftplus-vault-storage-15-gb/');
+				return apply_filters('updraftplus_com_shop_vault_15', 'https://teamupdraft.com/cart/?add-to-cart=1434&variation_id=1441?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-vault-storage-15-gb&utm_creative_format=button');
 				break;
 			case 'shop_vault_50':
-				return apply_filters('updraftplus_com_shop_vault_50', 'https://updraftplus.com/shop/updraftplus-vault-storage-50-gb/');
+				return apply_filters('updraftplus_com_shop_vault_50', 'https://teamupdraft.com/cart/?add-to-cart=1440&variation_id=1441?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-vault-storage-50-gb&utm_creative_format=button');
 				break;
 			case 'shop_vault_250':
-				return apply_filters('updraftplus_com_shop_vault_250', 'https://updraftplus.com/shop/updraftplus-vault-storage-250-gb/');
+				return apply_filters('updraftplus_com_shop_vault_250', 'https://teamupdraft.com/cart/?add-to-cart=1437&variation_id=1441?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=updraftplus-vault-storage-250-gb&utm_creative_format=button');
 				break;
 			case 'anon_backups':
-				return apply_filters('updraftplus_com_anon_backups', 'https://updraftplus.com/upcoming-updraftplus-feature-clone-data-anonymisation/');
+				return apply_filters('updraftplus_com_anon_backups', 'https://teamupdraft.com/blog/upcoming-updraftplus-feature-anonymise-data-before-cloning-your-site/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=unknown&utm_creative_format=unknown');
 				break;
 			case 'clone_packages':
 				return apply_filters('updraftplus_com_clone_packages', 'https://updraftplus.com/faqs/what-is-the-largest-site-that-i-can-clone-with-updraftclone/');
+				break;
+			case 'premium_more_than_one_storage':
+				return apply_filters('updraftplus_premium_more_than_one_storage', 'https://teamupdraft.com/updraftplus/pricing?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=more-than-one&utm_creative_format=text');
+				break;
+			case 'premium_rackspace':
+				return apply_filters('updraftplus_premium_rackspace', 'https://teamupdraft.com/updraftplus/features/rackspace-cloudfiles?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=rackspace-container&utm_creative_format=text');
+				break;
+			case 'premium_onedrive':
+				return apply_filters('updraftplus_premium_onedrive', 'https://teamupdraft.com/updraftplus/wordpress-cloud-storage-options?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=back-up-to-onedrive&utm_creative_format=text');
+				break;
+			case 'premium_azure':
+				return apply_filters('updraftplus_premium_azure', 'https://teamupdraft.com/updraftplus/wordpress-cloud-storage-options?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=backup-to-microsoft-azure&utm_creative_format=text');
+				break;
+			case 'premium_sftp':
+				return apply_filters('updraftplus_premium_sftp', 'https://teamupdraft.com/updraftplus/wordpress-cloud-storage-options?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=backup-via-sftp-and-scp&utm_creative_format=text');
+				break;
+			case 'premium_googlecloud':
+				return apply_filters('updraftplus_premium_googlecloud', 'https://teamupdraft.com/updraftplus/wordpress-cloud-storage-options?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=backup-to-google-cloud&utm_creative_format=text');
+				break;
+			case 'premium_backblaze':
+				return apply_filters('updraftplus_premium_backblaze', 'https://teamupdraft.com/updraftplus/wordpress-cloud-storage-options?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=backup-to-backblaze&utm_creative_format=text');
+				break;
+			case 'premium_webdav':
+				return apply_filters('updraftplus_premium_webdav', 'https://teamupdraft.com/updraftplus/wordpress-cloud-storage-options?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=backup-to-webdav&utm_creative_format=text');
+				break;
+			case 'premium_pcloud':
+				return apply_filters('updraftplus_premium_pcloud', 'https://teamupdraft.com/updraftplus/wordpress-cloud-storage-options?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=backup-to-pcloud&utm_creative_format=text');
+				break;
+			case 'premium_email':
+				return apply_filters('updraftplus_premium_email', 'https://teamupdraft.com/updraftplus/features/advanced-wordpress-backup-reports?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=for-more-email-options&utm_creative_format=notice');
+				break;
+			case 'buy_clone_tokens':
+				return apply_filters('updraftplus_buy_clone_tokens', 'https://teamupdraft.com/updraftplus/updraftclone/?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=to-clone-your-site&utm_creative_format=text#pricing-block');
 				break;
 			default:
 				return 'URL not found ('.$which_page.')';
@@ -6252,6 +6322,7 @@ class UpdraftPlus {
 				return $value1 != $value2;
 				break;
 			default:
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error messages should be escaped when caught and printed.
 				throw new Exception(__METHOD__.": Unsupported (".$operator.") operator", 1);
 				break;
 		}
@@ -6361,7 +6432,7 @@ class UpdraftPlus {
 		if (file_exists($checkout_embed_product_file)) {
 			$checkout_embed_products = json_decode(file_get_contents($checkout_embed_product_file));
 		} else {
-			throw new Exception(sprintf("The %s file is missing.", $checkout_embed_product_file));
+			throw new Exception(sprintf("The %s file is missing.", $checkout_embed_product_file)); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Error messages should be escaped when caught and printed.
 		}
 
 		$checkout_embed_products = apply_filters('updraftplus_checkout_embed_products', $checkout_embed_products);
@@ -6403,5 +6474,28 @@ class UpdraftPlus {
 		$GLOBALS['self'] = $parent_file = UpdraftPlus_Options::PARENT_FILE;
 
 		return $parent_file;
+	}
+
+	/**
+	 * Unserialize data while maintaining compatibility across PHP versions due to different number of arguments required by PHP's "unserialize" function
+	 *
+	 * @param string        $serialized_data Data to be unserialized, should be one that is already serialized
+	 * @param boolean|array $allowed_classes Either an array of class names which should be accepted, false to accept no classes, or true to accept all classes
+	 * @param integer       $max_depth       The maximum depth of structures permitted during unserialization, and is intended to prevent stack overflows
+	 * @return mixed Unserialized data can be any of types (integer, float, boolean, string, array or object)
+	 */
+	public static function unserialize($serialized_data, $allowed_classes = false, $max_depth = 0) {
+		static $polyfill_unserialize_loaded = false;
+		if (version_compare(PHP_VERSION, '5.2', '<=')) {
+			$result = unserialize($serialized_data); // For PHP 5.2 users, the search-replace feature has been removed, meaning that any input provided in this context will not undergo search-replace processing
+		} else {
+			if (!$polyfill_unserialize_loaded) {
+				if (!class_exists('Brumann\Polyfill\DisallowedClassesSubstitutor')) updraft_try_include_file('vendor/brumann/polyfill-unserialize/src/DisallowedClassesSubstitutor.php', 'require_once');
+				if (!class_exists('Brumann\Polyfill\Unserialize')) updraft_try_include_file('vendor/brumann/polyfill-unserialize/src/Unserialize.php', 'require_once');
+				$polyfill_unserialize_loaded = true;
+			}
+			$result = call_user_func(array('Brumann\Polyfill\Unserialize', 'unserialize'), $serialized_data, array('allowed_classes' => $allowed_classes, 'max_depth' => $max_depth));
+		}
+		return $result;
 	}
 }

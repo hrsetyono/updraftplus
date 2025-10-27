@@ -635,20 +635,20 @@ class UpdraftPlus_Addons_RemoteStorage_sftp extends UpdraftPlus_RemoteStorage_Ad
 	public function credentials_test($posted_settings) {
 	
 		if (empty($posted_settings['host'])) {
-			printf(__("Failure: No %s was given.", 'updraftplus'), __('host name', 'updraftplus'));
+			printf(esc_html__("Failure: No %s was given.", 'updraftplus'), esc_html__('host name', 'updraftplus'));
 			return;
 		}
 		if (empty($posted_settings['user'])) {
-			printf(__("Failure: No %s was given.", 'updraftplus'), __('username', 'updraftplus'));
+			printf(esc_html__("Failure: No %s was given.", 'updraftplus'), esc_html__('username', 'updraftplus'));
 			return;
 		}
 		if (empty($posted_settings['pass']) && empty($posted_settings['key'])) {
-			printf(__("Failure: No %s was given.", 'updraftplus'), __('password/key', 'updraftplus'));
+			printf(esc_html__("Failure: No %s was given.", 'updraftplus'), esc_html__('password/key', 'updraftplus'));
 			return;
 		}
 		$port = empty($posted_settings['port']) ? 22 : $posted_settings['port'];
 		if (!is_numeric($port)) {
-			_e("Failure: Port must be an integer.", 'updraftplus');
+			esc_html_e("Failure: Port must be an integer.", 'updraftplus');
 			return;
 		}
 		$path = empty($posted_settings['path']) ? '' : $posted_settings['path'];
@@ -666,9 +666,9 @@ class UpdraftPlus_Addons_RemoteStorage_sftp extends UpdraftPlus_RemoteStorage_Ad
 		$sftp = $this->connect($host, $port, $fingerprint, $user, $pass, $key, $scp, $debug_mode);
 
 		if (is_wp_error($sftp)) {
-			echo __("Failed", 'updraftplus').": ";
+			esc_html_e("Failed", 'updraftplus').": ";
 			foreach ($sftp->get_error_messages() as $key => $msg) {
-				echo "$msg\n";
+				echo wp_kses("$msg\n", array());
 			}
 			$error_data = $sftp->get_error_data();
 			return is_array($error_data) ? $error_data : null;
@@ -680,7 +680,7 @@ class UpdraftPlus_Addons_RemoteStorage_sftp extends UpdraftPlus_RemoteStorage_Ad
 				@$sftp->mkdir($path);// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the method.
 				// See if the directory now exists
 				if (!$sftp->chdir($path)) {
-					echo __('Check your file permissions: Could not successfully create and enter:', 'updraftplus')." (".htmlspecialchars($path).")";
+					echo wp_kses(__('Check your file permissions: Could not successfully create and enter:', 'updraftplus')." (".$path.")", array());
 					@$sftp->disconnect();// phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged -- Silenced to suppress errors that may arise because of the method.
 					return;
 				}
@@ -704,23 +704,23 @@ class UpdraftPlus_Addons_RemoteStorage_sftp extends UpdraftPlus_RemoteStorage_Ad
 			$valid_fingerprints = $this->get_fingerprints($this->ssh);
 			if (empty($fingerprint)) {
 				$ret_arr['valid_md5_fingerprint'] = $valid_fingerprints['md5'];
-				_e('Success', 'updraftplus');
+				esc_html_e('Success', 'updraftplus');
 			} else {
 				$match_fingerprint = $this->validate_fingerprint($fingerprint, $valid_fingerprints);
 				if ($match_fingerprint) {
-					_e('Success', 'updraftplus');
+					esc_html_e('Success', 'updraftplus');
 				} else {
-					echo __('Failed: We are unable to match the fingerprint.', 'updraftplus').' '.__('However, we were able to log in and move to the indicated directory and successfully create a file in that location.', 'updraftplus');
+					echo esc_html(__('Failed: We are unable to match the fingerprint.', 'updraftplus').' '.__('However, we were able to log in and move to the indicated directory and successfully create a file in that location.', 'updraftplus'));
 				}
 			}
 
-			printf(' '.__("The server's RSA key %s fingerprint: %s.", 'updraftplus').' ', 'MD5', $valid_fingerprints['md5']);
-			printf(__("The server's RSA key %s fingerprint: %s.", 'updraftplus'), 'SHA256', $valid_fingerprints['sha256']);
+			printf(' '.esc_html__("The server's RSA key %s fingerprint: %s.", 'updraftplus').' ', 'MD5', esc_html($valid_fingerprints['md5']));
+			printf(esc_html__("The server's RSA key %s fingerprint: %s.", 'updraftplus'), 'SHA256', esc_html($valid_fingerprints['sha256']));
 		} else {
 			if (empty($scp)) {
-				echo __("Failed: We were able to log in and move to the indicated directory, but failed to successfully create a file in that location.", 'updraftplus');
+				esc_html_e("Failed: We were able to log in and move to the indicated directory, but failed to successfully create a file in that location.", 'updraftplus');
 			} else {
-				_e("Failed: We were able to log in, but failed to successfully create a file in that location.", 'updraftplus');
+				esc_html_e("Failed: We were able to log in, but failed to successfully create a file in that location.", 'updraftplus');
 			}
 		}
 
@@ -1037,7 +1037,7 @@ class UpdraftPlus_ftp_wrapper {
 			if (is_a($updraftplus, 'UpdraftPlus') && !$output) {
 				$updraftplus->log("FTPS: error: ".curl_error($this->curl_handle));
 			} elseif (true === $updraftplus && !$output) {
-				echo __('Error:', 'updraftplus').' '.curl_error($this->curl_handle)."\n";
+				echo wp_kses(__('Error:', 'updraftplus').' '.curl_error($this->curl_handle)."\n", array());
 			}
 			// Mark as used
 			$this->curl_handle = true;

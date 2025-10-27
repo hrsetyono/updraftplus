@@ -1,15 +1,24 @@
 <?php return array(
     'root' => array(
         'name' => 'updraftplus/updraftplus',
-        'pretty_version' => 'dev-master',
-        'version' => 'dev-master',
-        'reference' => 'ded00006b81478646c05f9d61486511e1e135af7',
+        'pretty_version' => 'v1.25.7',
+        'version' => '1.25.7.0',
+        'reference' => 'e85ac29af46edbcc20a83f1aa1687a8fd7d8357b',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
         'dev' => false,
     ),
     'versions' => array(
+        'brumann/polyfill-unserialize' => array(
+            'pretty_version' => 'v2.0.0',
+            'version' => '2.0.0.0',
+            'reference' => '46e5c18ee87d8a9b5765ef95468c1ac27bd107bf',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../brumann/polyfill-unserialize',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'components/jquery' => array(
             'pretty_version' => 'v3.7.1',
             'version' => '3.7.1.0',
@@ -239,9 +248,9 @@
             'dev_requirement' => false,
         ),
         'phpseclib/phpseclib' => array(
-            'pretty_version' => '2.0.47',
-            'version' => '2.0.47.0',
-            'reference' => 'b7d7d90ee7df7f33a664b4aea32d50a305d35adb',
+            'pretty_version' => '2.0.48',
+            'version' => '2.0.48.0',
+            'reference' => 'eaa7be704b8b93a6913b69eb7f645a59d7731b61',
             'type' => 'library',
             'install_path' => __DIR__ . '/../phpseclib/phpseclib',
             'aliases' => array(),
@@ -353,9 +362,9 @@
             'dev_requirement' => false,
         ),
         'updraftplus/updraftplus' => array(
-            'pretty_version' => 'dev-master',
-            'version' => 'dev-master',
-            'reference' => 'ded00006b81478646c05f9d61486511e1e135af7',
+            'pretty_version' => 'v1.25.7',
+            'version' => '1.25.7.0',
+            'reference' => 'e85ac29af46edbcc20a83f1aa1687a8fd7d8357b',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -184,7 +184,7 @@ class HTTP_Request2_MultipartBody
                     while ($length > 0 && !feof($this->_uploads[$pos]['fp'])) {
                         if (false === ($chunk = fread($this->_uploads[$pos]['fp'], $length))) {
                             throw new HTTP_Request2_LogicException(
-                                'Failed reading file upload', HTTP_Request2_Exception::READ_ERROR
+                                'Failed reading file upload', HTTP_Request2_Exception::READ_ERROR // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The escaping should happen when the exception is caught and printed
                             );
                         }
                         $ret    .= $chunk;

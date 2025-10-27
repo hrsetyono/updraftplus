@@ -53,7 +53,7 @@ class UpdraftPlus_Addons_Incremental {
 	 * @return string      - the premium backup link
 	 */
 	public function incremental_backup_link($link) {// phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable -- Unused parameter is present because the method is used as a WP filter.
-		return '<p><a href="#" id="updraftplus_incremental_backup_link" onclick="updraft_backup_dialog_open(\'incremental\'); return false;" data-incremental="1">' . __('Add changed files (incremental backup) ...', ' updraftplus ') . '</a></p>';
+		return '<p><a href="#" id="updraftplus_incremental_backup_link" onclick="updraft_backup_dialog_open(\'incremental\'); return false;" data-incremental="1">' . __('Add changed files (incremental backup) ...', 'updraftplus') . '</a></p>';
 	}
 
 	/**
@@ -363,19 +363,19 @@ class UpdraftPlus_Addons_Incremental {
 	public function incremental_cell($selected_interval) {
 		?>
 		<div>
-		<?php _e('And then add an incremental backup', 'updraftplus'); ?>
+		<?php esc_html_e('And then add an incremental backup', 'updraftplus'); ?>
 		<select id="updraft_interval_increments" name="updraft_interval_increments">
 			<?php
 			$intervals = $this->get_intervals();
 			$selected_interval = UpdraftPlus_Options::get_updraft_option('updraft_interval_increments', 'none');
 			foreach ($intervals as $cronsched => $descrip) {
-				echo "<option value=\"$cronsched\" ";
+				echo "<option value=\"".esc_attr($cronsched)."\" ";
 				if ($cronsched == $selected_interval) echo 'selected="selected"';
-				echo ">".htmlspecialchars($descrip)."</option>\n";
+				echo ">".esc_html($descrip)."</option>\n";
 			}
 			?>
 		</select>
-		<?php echo '<a href="' . apply_filters('updraftplus_com_link', "https://updraftplus.com/support/tell-me-more-about-incremental-backups/") . '" aria-label="'. __('Tell me more about incremental backups', 'updraftplus') .'" target="_blank">' . __('Tell me more', 'updraftplus') . '</a>'; ?>
+		<?php echo '<a href="' . esc_url(apply_filters('updraftplus_com_link', "https://teamupdraft.com/updraftplus/features/wordpress-incremental-backup?utm_source=udp-plugin&utm_medium=referral&utm_campaign=paac&utm_content=tell-me-more&utm_creative_format=text")) . '" aria-label="'. esc_attr__('Tell me more about incremental backups', 'updraftplus') .'" target="_blank">' . esc_html__('Tell me more', 'updraftplus') . '</a>'; ?>
 		</div>
 		<?php
 	}
@@ -457,12 +457,7 @@ class UpdraftPlus_Addons_Incremental {
 		jQuery(function() {
 			<?php
 				$intervals = $this->get_intervals();
-				$var_int = '';
-				foreach ($intervals as $val => $descript) {
-					if ($var_int) $var_int .= ', ';
-					$var_int .= "$val: \"".esc_js($descript)."\"";
-				}
-				echo 'var intervals = {'.$var_int."}\n";
+				echo 'var intervals = '.wp_json_encode($intervals)."\n";
 			?>
 			function updraft_update_incremental_selector() {
 				var fileint = jQuery('#updraft-navtab-settings-content select.updraft_interval').val();
